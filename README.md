@@ -1,2 +1,12 @@
-# FundProg2-Projeto
-Projeto prático da disciplina de Fundamentos de Programação 2: Adivinhação de Palavras
+
+#### Projeto Prático
+## Adivinhação de Palavras
+
+#### Prof. Muriel de Souza Godoi
+Alunos: 
+- João Victor Lemes Cardoso
+- Felippe Henrique Teixeira Pedroso
+- Bryan Esteves Santana
+
+
+
