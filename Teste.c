@@ -2,7 +2,6 @@
 
 int main() {
     printf("Hello World\n");
-    printf("NIGGA");
 
     return 0;
 }
