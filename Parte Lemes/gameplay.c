@@ -79,7 +79,7 @@ int main() {
     #pragma endregion
 
     #pragma region JOGOS
-    char entrada[50];
+    char entrada[50] = "";
 
     GAME *tentativas;
     int t = -1;
