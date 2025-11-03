@@ -7,18 +7,17 @@
 #include <ctype.h>
 
 void divisao(char div[3][50]) {
-    int index = 1;
+    int index = 0;
     for (int i = 1; i < 3; i++) strcpy(div[i], "");
-
     if (strlen(div[0]) != strcspn(div[0], "/")) {
         char* token = strtok(div[0], "/");
 
         while (token != NULL) {
             strcpy(div[index], token);
-
+            index++;
             token = strtok(NULL, "/");
         }
-    } else index = 0;
+    } 
 }
 
 int igualdade(char a[3][50], char b[3][50]) {
@@ -32,8 +31,10 @@ int igualdade(char a[3][50], char b[3][50]) {
             }
             if (strcmp(b[j], "") == 0) break;
             if ((strcmp(a[i],b[j]) == 0) != 0) igual++;
+            // printf("%s %s %d\n", a[i], b[j], strcmp(a[i],b[j]) == 0);
         }
     }
+    // printf("igual: %d contA: %d\n", igual, contA);
     if (contA == igual) return 1;
     else if (igual > 0) return 2;
     return 0;
@@ -101,10 +102,76 @@ int main() {
     int index = 0;
     int capslock = 0;
 
+    bool ajuda1 = false;
+    bool ajuda2 = false;
+    bool ajuda3 = false;
+
+    //Flecha que indica maior ou menor ano
     Image flechaIm = LoadImage("sources/flecha.png");
     Texture2D flecha = LoadTextureFromImage(flechaIm);
 
+    //Capa
+        //Nome do arquivo da capa
+    char nomeJogo[40];
+
+    // for (int i = 0; i < 100; i++) {
+    //     strcpy(nomeJogo, jogos[i].nome);
+
+    //     for (int i = 0; i < strlen(nomeJogo); i++) {
+    //         if (nomeJogo[i] == ' ' || nomeJogo[i] == ',' || nomeJogo[i] == '-' || nomeJogo[i] == ':'){ 
+    //             if (i < 5) {
+    //                 nomeJogo[i] = '_';
+    //             } else {
+    //                 nomeJogo[i] = '\0';
+    //                 break;
+    //             }
+    //         }
+    //     }
+
+    //     printf("%s\n", nomeJogo);
+    // }
+
+    strcpy(nomeJogo, correto.nome);
+    for (int i = 0; i < strlen(nomeJogo); i++) {
+        if (nomeJogo[i] == ' ' || nomeJogo[i] == ',' || nomeJogo[i] == '-' || nomeJogo[i] == ':'){ 
+            if (i < 5) {
+                nomeJogo[i] = '_';
+            } else {
+                nomeJogo[i] = '\0';
+                break;
+            }
+        }
+    }
+
+        //Carregar a capa
+    char imagem[50];
+    sprintf(imagem, "capas/capa_%s.jpg", nomeJogo); 
+
+    Image image = LoadImage(imagem);
+    Texture2D capa = capa = LoadTextureFromImage(image);
+    UnloadImage(image);
+
+    //Shader para borrar
+    Shader borrar = LoadShader(0, "capas/blur.fs");
+    int viewSizeLoc = GetShaderLocation(borrar, "viewSize");
+    RenderTexture2D objetoBorrado = LoadRenderTexture(capa.width, capa.height);
+    float tamanhoText[2] = { (float)capa.width, (float)capa.height };
+    SetShaderValue(borrar, viewSizeLoc, tamanhoText, SHADER_UNIFORM_VEC2);
+
     while (!WindowShouldClose()) {
+        // printf("%s\n", nomeJogo);
+
+        //Borrar a imagem
+
+        BeginTextureMode(objetoBorrado);     
+            ClearBackground(BLANK);
+            
+            BeginShaderMode(borrar);  
+                DrawTexture(capa, 0,0, WHITE);
+            EndShaderMode();                
+
+        EndTextureMode();
+
         int maxSelec = 4;
         for (int i = 0; i < 5; i++) if (strcmp(pesquisa[i].nome, "") == 0) maxSelec--;
 
@@ -192,9 +259,9 @@ int main() {
         BeginDrawing();
 
         ClearBackground((Color){30,30,30,255});
-        DrawText(entrada, 20, 30/2, 30, RAYWHITE);
+        DrawText(entrada, largura/2-MeasureText(entrada, 30)/2, 30/2, 30, RAYWHITE);
         for (int j = 0; j < 5; j++) {
-            DrawText(pesquisa[j].nome, 20, 30*(2+1.5*j), 30, (selecionado == j ? BLUE : PINK));
+            DrawText(pesquisa[j].nome, largura/2-MeasureText(pesquisa[j].nome, 30)/2, 30*(2+1.5*j), 30, (selecionado == j ? BLUE : PINK));
         }
 
         char textoTentativas[20];
@@ -203,35 +270,35 @@ int main() {
         if (strcmp(tentativas[tSelec].nome, "") != 0) {
             GAME jogoSelec = tentativas[tSelec];
             
-            DrawText(jogoSelec.nome, 20, 315, 30, RED);
+            DrawText(jogoSelec.nome, 20, altura - 180, 30, PINK);
 
             int pulo = 20;
 
             //ANO
             char ano[5];
             sprintf(ano,"%d",jogoSelec.ano);
-            if (jogoSelec.ano == correto.ano) DrawText(ano, 20, 400, 30, GREEN);
+            if (jogoSelec.ano == correto.ano) DrawText(ano, 20, altura - 80, 30, GREEN);
             else {
                 // if (jogoSelec.ano > correto.ano) flecha. = -16;
                 // else flecha.height = 16;
-                DrawText(ano, pulo, 400, 30, RED);
-                DrawTexturePro(flecha, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(ano, 30) + 35, 413, 15, 14}, (Vector2){7,7}, (jogoSelec.ano > correto.ano ? 180 : 0), WHITE);    
+                DrawText(ano, pulo, altura - 80, 30, RED);
+                DrawTexturePro(flecha, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(ano, 30) + 35, altura - 67, 15, 14}, (Vector2){7,7}, (jogoSelec.ano > correto.ano ? 180 : 0), WHITE);    
                 // DrawTextureEx(flecha, (Vector2){MeasureText(ano, 30) + 35, 413},  (jogoSelec.ano > correto.ano ? 180 : 0), 1, WHITE);
             }
 
             pulo += MeasureText(ano, 30) + 33;
 
             //ORIGEM
-            DrawText(jogoSelec.origem, pulo, 400, 30, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
+            DrawText(jogoSelec.origem, pulo, altura - 80, 30, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
             
             pulo += MeasureText(jogoSelec.origem, 30) + 20;
 
             //GENERO
             char genero[50];
-            int gIgualdade = igualdade(jogoSelec.genero, correto.genero);
+            int gIgualdade = igualdade(correto.genero, jogoSelec.genero);
             sprintf(genero, "%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]);
-            if (gIgualdade == 1) DrawText(genero, pulo, 400, 30, GREEN);
-            else DrawText(genero, pulo, 400, 30, (gIgualdade == 0) ? RED : YELLOW);
+            if (gIgualdade == 1) DrawText(genero, pulo, altura - 80, 30, GREEN);
+            else DrawText(genero, pulo, altura - 80, 30, (gIgualdade == 0) ? RED : YELLOW);
 
             pulo += MeasureText(genero, 30) + 20;
 
@@ -240,60 +307,71 @@ int main() {
                 jogoSelec.tema[strcspn(jogoSelec.tema, " ")] = '\n';
             }
 
-            DrawText(jogoSelec.tema, pulo, 400, 30, (strcmp(jogoSelec.tema, correto.tema) == 0) ? GREEN : RED);
+            DrawText(jogoSelec.tema, pulo, altura - 80, 30, (strcmp(jogoSelec.tema, correto.tema) == 0) ? GREEN : RED);
             
             pulo += MeasureText(jogoSelec.tema, 30) + 20;
 
             //GAMEMODE
             char gamemode[50];
-            int gaIgualdade = igualdade(jogoSelec.gamemode, correto.gamemode);
+            int gaIgualdade = igualdade(correto.gamemode, jogoSelec.gamemode);
             sprintf(gamemode, "%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]);
-            if (gaIgualdade == 1) DrawText(gamemode, pulo, 400, 30, GREEN);
-            else DrawText(gamemode, pulo, 400, 30, (gaIgualdade == 0) ? RED : YELLOW);
+            if (gaIgualdade == 1) DrawText(gamemode, pulo, altura - 80, 30, GREEN);
+            else DrawText(gamemode, pulo, altura - 80, 30, (gaIgualdade == 0) ? RED : YELLOW);
 
             pulo += MeasureText(gamemode, 30) + 20;
 
-            int tamanhoNome = 15 + strcspn(jogoSelec.nome, "\n");
-            char imagem[tamanhoNome];
-            sprintf(imagem, "capas/capa_%s.jpg", correto.nome); 
-
-            // Image image = LoadImage(imagem);
-            // if (image.format != NULL && t > 4) {
-            //     texture = LoadTextureFromImage(image);
-            //     UnloadImage(image);
-            //     DrawTexture(texture, 530, 20, WHITE);
-            // }
-
             //PLATAFORMA
-            // char plataforma[100];
-            // int pIgualdade = igualdade(jogoSelec.plataforma, correto.plataforma);
-            // sprintf(plataforma, "%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]);
-            // if (pIgualdade == 1) DrawText(plataforma, pulo, 360, 30, GREEN);
-            // else DrawText(plataforma, pulo, 360, 30, (pIgualdade == 0) ? RED : YELLOW);
+            char plataforma[100];
+            int pIgualdade = igualdade(correto.plataforma, jogoSelec.plataforma);
+            sprintf(plataforma, "%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]);
+            int qntPlata = 2;
+            for (int i = 0; i < 3; i++) if (strcmp(jogoSelec.plataforma[i], "") == 0) qntPlata--;
+            if (pIgualdade == 1) DrawText(plataforma, pulo, altura - 80 - 30*qntPlata/2, 30, GREEN);
+            else DrawText(plataforma, pulo, altura - 80 - 30*qntPlata/2, 30, (pIgualdade == 0) ? RED : YELLOW);
 
-            // pulo += MeasureText(plataforma, 30) + 10;
+            pulo += MeasureText(plataforma, 30) + 10;
         }
 
         //BOTÃO
         Vector2 mousePos = GetMousePosition();
-        Vector2 botao = {largura-100, 30};
+        Vector2 botao1 = {largura-100, 30};
+        Vector2 botao2 = {largura-100, 75};
+        Vector2 botao3 = {largura-100, 120};
 
-        DrawCircle(botao.x, botao.y, 15, (t > 3) ? WHITE : RED);
+        if (t > 3) DrawCircle(botao1.x, botao1.y, 15, (ajuda1) ? BLUE : WHITE);
+        if (t > 6) DrawCircle(botao2.x, botao2.y, 15, (ajuda2) ? BLUE : WHITE);
+        if (t > 8) DrawCircle(botao3.x, botao3.y, 15, (ajuda3) ? BLUE : WHITE);
 
 
-        float distance = sqrt(pow(mousePos.x - botao.x, 2) + pow(mousePos.y - botao.y, 2));
-        if (distance < 15 && t > 3)
-        {
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                printf("a\n");
-            }
+        float dist1 = sqrt(pow(mousePos.x - botao1.x, 2) + pow(mousePos.y - botao1.y, 2));
+        float dist2 = sqrt(pow(mousePos.x - botao2.x, 2) + pow(mousePos.y - botao2.y, 2));
+        float dist3 = sqrt(pow(mousePos.x - botao3.x, 2) + pow(mousePos.y - botao3.y, 2));
+
+        if (dist1 < 15 && t > 3) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda1 = true;
+        if (dist2 < 15 && t > 6) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda2 = true;
+        if (dist3 < 15 && t > 8) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda3 = true;
+
+        //Ajudas
+        if (ajuda1) printf("A ajuda 1 foi ativada\n");
+        if (ajuda2) {
+            Rectangle sourceRect = { 0, 0, (float)objetoBorrado.texture.width, (float)-objetoBorrado.texture.height };
+            Vector2 destPos = { largura-capa.width-20, altura-capa.height-20};
+            DrawTextureRec(objetoBorrado.texture, sourceRect, destPos, WHITE);
         }
+        if (ajuda3) {
+            DrawTexture(capa, largura-capa.width-20, altura-capa.height-20, WHITE);
+        }
+
+        DrawRectangleLines(largura-capa.width-20, altura-capa.height-20, objetoBorrado.texture.width, objetoBorrado.texture.height, DARKGRAY);
 
         EndDrawing();
     }
 
+    UnloadRenderTexture(objetoBorrado);
+    UnloadShader(borrar);
     UnloadTexture(flecha);
     UnloadImage(flechaIm);
+    UnloadTexture(capa);
     free(tentativas);
     return 0;
 }
