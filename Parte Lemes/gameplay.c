@@ -91,7 +91,7 @@ int main() {
     tentativas = calloc(t+1, sizeof(GAME));
 
     GAME correto;
-    int c = (rand() % (100));
+    // int c = (rand() % (100));
     correto = jogos[0];
     // correto = jogos[c];
 
@@ -154,7 +154,7 @@ int main() {
         if (entrada[0] != '\0') {
             for (int l = 0, j = 0; l < 100 && j < 5; l++) {
                 char a[strlen(entrada)+1];
-                for (int k = 0; k <= strlen(entrada); k++) {
+                for (int k = 0; k <= (int)strlen(entrada); k++) {
                     a[k] = jogos[l].nome[k];
                 }
                 a[strlen(entrada)] = '\0';
@@ -178,7 +178,7 @@ int main() {
             index = 0;
 
             if (strlen(tentativas[t].nome) >= 10) {
-                for (int i = strlen(tentativas[t].nome)/3; i < strlen(tentativas[t].nome); i++) {
+                for (int i = (int)strlen(tentativas[t].nome)/3; i < (int)strlen(tentativas[t].nome); i++) {
                     if (tentativas[t].nome[i] == ' ') {
                         tentativas[t].nome[i] = '\n';
                         break;
