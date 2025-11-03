@@ -362,7 +362,7 @@ int main() {
             DrawTexture(capa, largura-capa.width-20, altura-capa.height-20, WHITE);
         }
 
-        DrawRectangleLines(largura-capa.width-20, altura-capa.height-20, objetoBorrado.texture.width, objetoBorrado.texture.height, DARKGRAY);
+        DrawRectangleLines(largura-capa.width-20, altura-capa.height-20, objetoBorrado.texture.width, objetoBorrado.texture.height, DARKBLUE);
 
         EndDrawing();
     }
