@@ -132,7 +132,7 @@ int main() {
     // }
 
     strcpy(nomeJogo, correto.nome);
-    for (int i = 0; i < strlen(nomeJogo); i++) {
+    for (int i = 0; i < (int)strlen(nomeJogo); i++) {
         if (nomeJogo[i] == ' ' || nomeJogo[i] == ',' || nomeJogo[i] == '-' || nomeJogo[i] == ':'){ 
             if (i < 5) {
                 nomeJogo[i] = '_';
@@ -264,9 +264,7 @@ int main() {
             DrawText(pesquisa[j].nome, largura/2-MeasureText(pesquisa[j].nome, 30)/2, 30*(2+1.5*j), 30, (selecionado == j ? BLUE : PINK));
         }
 
-        char textoTentativas[20];
-        sprintf(textoTentativas,"%d", tSelec+1);
-        if (t!=-1) DrawText(textoTentativas, largura-MeasureText(textoTentativas, 30)-30, 15, 30, WHITE);
+        if (t!=-1) DrawText(TextFormat("%d", tSelec+1), largura-MeasureText(TextFormat("%d", tSelec+1), 30)-30, 15, 30, WHITE);
         if (strcmp(tentativas[tSelec].nome, "") != 0) {
             GAME jogoSelec = tentativas[tSelec];
             
@@ -275,18 +273,16 @@ int main() {
             int pulo = 20;
 
             //ANO
-            char ano[5];
-            sprintf(ano,"%d",jogoSelec.ano);
-            if (jogoSelec.ano == correto.ano) DrawText(ano, 20, altura - 80, 30, GREEN);
+            if (jogoSelec.ano == correto.ano) DrawText(TextFormat("%d",jogoSelec.ano), 20, altura - 80, 30, GREEN);
             else {
                 // if (jogoSelec.ano > correto.ano) flecha. = -16;
                 // else flecha.height = 16;
-                DrawText(ano, pulo, altura - 80, 30, RED);
-                DrawTexturePro(flecha, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(ano, 30) + 35, altura - 67, 15, 14}, (Vector2){7,7}, (jogoSelec.ano > correto.ano ? 180 : 0), WHITE);    
+                DrawText(TextFormat("%d",jogoSelec.ano), pulo, altura - 80, 30, RED);
+                DrawTexturePro(flecha, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(TextFormat("%d",jogoSelec.ano), 30) + 35, altura - 67, 15, 14}, (Vector2){7,7}, (jogoSelec.ano > correto.ano ? 180 : 0), WHITE);    
                 // DrawTextureEx(flecha, (Vector2){MeasureText(ano, 30) + 35, 413},  (jogoSelec.ano > correto.ano ? 180 : 0), 1, WHITE);
             }
 
-            pulo += MeasureText(ano, 30) + 33;
+            pulo += MeasureText(TextFormat("%d",jogoSelec.ano), 30) + 33;
 
             //ORIGEM
             DrawText(jogoSelec.origem, pulo, altura - 80, 30, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
@@ -294,13 +290,11 @@ int main() {
             pulo += MeasureText(jogoSelec.origem, 30) + 20;
 
             //GENERO
-            char genero[50];
             int gIgualdade = igualdade(correto.genero, jogoSelec.genero);
-            sprintf(genero, "%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]);
-            if (gIgualdade == 1) DrawText(genero, pulo, altura - 80, 30, GREEN);
-            else DrawText(genero, pulo, altura - 80, 30, (gIgualdade == 0) ? RED : YELLOW);
+            if (gIgualdade == 1) DrawText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), pulo, altura - 80, 30, GREEN);
+            else DrawText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), pulo, altura - 80, 30, (gIgualdade == 0) ? RED : YELLOW);
 
-            pulo += MeasureText(genero, 30) + 20;
+            pulo += MeasureText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), 30) + 20;
 
             //TEMA
             if (strlen(jogoSelec.tema) != strcspn(jogoSelec.tema, " ")) {
@@ -312,24 +306,20 @@ int main() {
             pulo += MeasureText(jogoSelec.tema, 30) + 20;
 
             //GAMEMODE
-            char gamemode[50];
             int gaIgualdade = igualdade(correto.gamemode, jogoSelec.gamemode);
-            sprintf(gamemode, "%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]);
-            if (gaIgualdade == 1) DrawText(gamemode, pulo, altura - 80, 30, GREEN);
-            else DrawText(gamemode, pulo, altura - 80, 30, (gaIgualdade == 0) ? RED : YELLOW);
+            if (gaIgualdade == 1) DrawText(TextFormat("%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]), pulo, altura - 80, 30, GREEN);
+            else DrawText(TextFormat("%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]), pulo, altura - 80, 30, (gaIgualdade == 0) ? RED : YELLOW);
 
-            pulo += MeasureText(gamemode, 30) + 20;
+            pulo += MeasureText(TextFormat("%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]), 30) + 20;
 
             //PLATAFORMA
-            char plataforma[100];
             int pIgualdade = igualdade(correto.plataforma, jogoSelec.plataforma);
-            sprintf(plataforma, "%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]);
             int qntPlata = 2;
             for (int i = 0; i < 3; i++) if (strcmp(jogoSelec.plataforma[i], "") == 0) qntPlata--;
-            if (pIgualdade == 1) DrawText(plataforma, pulo, altura - 80 - 30*qntPlata/2, 30, GREEN);
-            else DrawText(plataforma, pulo, altura - 80 - 30*qntPlata/2, 30, (pIgualdade == 0) ? RED : YELLOW);
+            if (pIgualdade == 1) DrawText(TextFormat("%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]), pulo, altura - 80 - 30*qntPlata/2, 30, GREEN);
+            else DrawText(TextFormat("%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]), pulo, altura - 80 - 30*qntPlata/2, 30, (pIgualdade == 0) ? RED : YELLOW);
 
-            pulo += MeasureText(plataforma, 30) + 10;
+            pulo += MeasureText(TextFormat("%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]), 30) + 10;
         }
 
         //BOTÃO
