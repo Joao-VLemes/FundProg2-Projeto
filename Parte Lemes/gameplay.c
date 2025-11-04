@@ -22,21 +22,30 @@ void divisao(char div[3][50]) {
 
 int igualdade(char a[3][50], char b[3][50]) {
     int igual = 0;
-    int contA = 3;
+    int contA = 0; int contB = 0;
+
     for (int i = 0; i < 3; i++) {
+        if (strlen(b[i]) == 0) continue; 
+        contB++;
+    }   
+
+    for (int i = 0; i < 3; i++) {
+        if (strlen(a[i]) == 0) continue; 
+        contA++;
+
+        bool achou = false;
         for (int j = 0; j < 3; j++) {
-            if (strcmp(a[i], "") == 0) {
-                contA--;
+            if (strlen(b[j]) == 0) continue; 
+            if ((strcmp(a[i],b[j]) == 0)) {
+                achou = true;
                 break;
             }
-            if (strcmp(b[j], "") == 0) break;
-            if ((strcmp(a[i],b[j]) == 0) != 0) igual++;
-            // printf("%s %s %d\n", a[i], b[j], strcmp(a[i],b[j]) == 0);
         }
+        if (achou) igual++;
     }
-    // printf("igual: %d contA: %d\n", igual, contA);
-    if (contA == igual) return 1;
-    else if (igual > 0) return 2;
+    // printf("ContB: %d contA: %d\n", contB, contA);
+    if (contA == igual && contA == contB) return 1;
+    if (igual > 0) return 2;
     return 0;
 }
 
@@ -49,7 +58,10 @@ typedef struct
     char tema[50];
     char gamemode[3][50];
     char plataforma[3][50];
+    char frase[200];
 } GAME;
+
+
 
 int main() {
     srand(time(NULL));
@@ -73,6 +85,22 @@ int main() {
     fclose(lista);
     #pragma endregion
 
+    #pragma region CARREGAR FRASES
+
+    FILE *listaFrases;
+
+    listaFrases = fopen("frases.txt", "r");
+    if (listaFrases == NULL){
+        perror("LISTA NÃO CARREGADA\n");
+        exit(1);
+    }
+
+    for (int i = 0; fscanf(listaFrases, " %199[^\n]\n", jogos[i].frase) == 1; i++) {
+        // printf("%s: %s\n", jogos[i].nome,jogos[i].frase);
+    }
+
+    #pragma endregion
+
     #pragma region JANELA
     int largura = 1280;
     int altura = 720;
@@ -92,9 +120,9 @@ int main() {
     tentativas = calloc(t+1, sizeof(GAME));
 
     GAME correto;
-    // int c = (rand() % (100));
-    correto = jogos[0];
-    // correto = jogos[c];
+    int c = (rand() % (100));
+    // correto = jogos[0];
+    correto = jogos[c];
 
     printf("%s\n", correto.nome);
     #pragma endregion 
@@ -109,6 +137,14 @@ int main() {
     //Flecha que indica maior ou menor ano
     Image flechaIm = LoadImage("sources/flecha.png");
     Texture2D flecha = LoadTextureFromImage(flechaIm);
+
+    //Coração de vida
+    Image coracaoIm = LoadImage("sources/coracao.png");
+    Texture2D coracao = LoadTextureFromImage(coracaoIm);
+
+    //Bandeira
+    Image bandeiraIM = LoadImage(TextFormat("sources/flags/%s.png", correto.origem));
+    Texture2D bandeira = LoadTextureFromImage(bandeiraIM);
 
     //Capa
         //Nome do arquivo da capa
@@ -285,9 +321,16 @@ int main() {
             pulo += MeasureText(TextFormat("%d",jogoSelec.ano), 30) + 33;
 
             //ORIGEM
-            DrawText(jogoSelec.origem, pulo, altura - 80, 30, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
-            
-            pulo += MeasureText(jogoSelec.origem, 30) + 20;
+            UnloadImage(bandeiraIM);
+            UnloadTexture(bandeira);
+            bandeiraIM = LoadImage(TextFormat("sources/flags/%s.png", jogoSelec.origem));
+            bandeira = LoadTextureFromImage(bandeiraIM);
+
+            DrawTexturePro(bandeira, (Rectangle){0, 0, (float)bandeira.width, (float)bandeira.height}, (Rectangle){pulo, altura - 80, bandeira.width*2, bandeira.height*2}, (Vector2){0,0}, 0, WHITE);
+            DrawRectangleLinesEx((Rectangle){pulo, altura - 80, bandeira.width*2, bandeira.height*2}, 2.5, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
+            // DrawText(jogoSelec.origem, pulo, altura - 80, 30, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
+
+            pulo += bandeira.width*2 + 20;
 
             //GENERO
             int gIgualdade = igualdade(correto.genero, jogoSelec.genero);
@@ -296,7 +339,7 @@ int main() {
 
             pulo += MeasureText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), 30) + 20;
 
-            //TEMA
+            // //TEMA
             if (strlen(jogoSelec.tema) != strcspn(jogoSelec.tema, " ")) {
                 jogoSelec.tema[strcspn(jogoSelec.tema, " ")] = '\n';
             }
@@ -323,26 +366,39 @@ int main() {
         }
 
         //BOTÃO
-        Vector2 mousePos = GetMousePosition();
-        Vector2 botao1 = {largura-100, 30};
-        Vector2 botao2 = {largura-100, 75};
-        Vector2 botao3 = {largura-100, 120};
+        // Vector2 mousePos = GetMousePosition();
+        // Vector2 botao1 = {largura-100, 30};
+        // Vector2 botao2 = {largura-100, 75};
+        // Vector2 botao3 = {largura-100, 120};
 
-        if (t > 3) DrawCircle(botao1.x, botao1.y, 15, (ajuda1) ? BLUE : WHITE);
-        if (t > 6) DrawCircle(botao2.x, botao2.y, 15, (ajuda2) ? BLUE : WHITE);
-        if (t > 8) DrawCircle(botao3.x, botao3.y, 15, (ajuda3) ? BLUE : WHITE);
+        // if (t > 3) DrawCircle(botao1.x, botao1.y, 15, (ajuda1) ? BLUE : WHITE);
+        // if (t > 6) DrawCircle(botao2.x, botao2.y, 15, (ajuda2) ? BLUE : WHITE);
+        // if (t > 8) DrawCircle(botao3.x, botao3.y, 15, (ajuda3) ? BLUE : WHITE);
 
 
-        float dist1 = sqrt(pow(mousePos.x - botao1.x, 2) + pow(mousePos.y - botao1.y, 2));
-        float dist2 = sqrt(pow(mousePos.x - botao2.x, 2) + pow(mousePos.y - botao2.y, 2));
-        float dist3 = sqrt(pow(mousePos.x - botao3.x, 2) + pow(mousePos.y - botao3.y, 2));
+        // float dist1 = sqrt(pow(mousePos.x - botao1.x, 2) + pow(mousePos.y - botao1.y, 2));
+        // float dist2 = sqrt(pow(mousePos.x - botao2.x, 2) + pow(mousePos.y - botao2.y, 2));
+        // float dist3 = sqrt(pow(mousePos.x - botao3.x, 2) + pow(mousePos.y - botao3.y, 2));
 
-        if (dist1 < 15 && t > 3) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda1 = true;
-        if (dist2 < 15 && t > 6) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda2 = true;
-        if (dist3 < 15 && t > 8) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda3 = true;
+        // if (dist1 < 15 && t > 3) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda1 = true;
+        // if (dist2 < 15 && t > 6) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda2 = true;
+        // if (dist3 < 15 && t > 8) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda3 = true;
+
+        //Vidas
+        int vidas = 20-t-1;
+
+        for (int i = 0; i < (int)ceil((double)vidas/2); i++) {
+            int sprite = 0;
+            if (i == vidas/2 && vidas%2 != 0) sprite = 1;
+            DrawTexturePro(coracao, (Rectangle){8*sprite,8*sprite,8,8}, (Rectangle){24*i,0,32,32}, (Vector2){0,0}, 0, WHITE);
+        }
+
+        if (vidas <= 15) ajuda1 = true;
+        if (vidas <= 7) ajuda2 = true;
+        if (vidas <= 3) ajuda3 = true;
 
         //Ajudas
-        if (ajuda1) printf("A ajuda 1 foi ativada\n");
+        if (ajuda1) printf("%s\n", correto.frase);
         if (ajuda2) {
             Rectangle sourceRect = { 0, 0, (float)objetoBorrado.texture.width, (float)-objetoBorrado.texture.height };
             Vector2 destPos = { largura-capa.width-20, altura-capa.height-20};
@@ -361,6 +417,10 @@ int main() {
     UnloadShader(borrar);
     UnloadTexture(flecha);
     UnloadImage(flechaIm);
+    UnloadTexture(bandeira);
+    UnloadImage(bandeiraIM);
+    UnloadTexture(coracao);
+    UnloadImage(coracaoIm);
     UnloadTexture(capa);
     free(tentativas);
     return 0;
