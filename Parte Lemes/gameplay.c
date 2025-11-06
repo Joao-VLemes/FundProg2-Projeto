@@ -6,284 +6,328 @@
 #include <time.h>
 #include <ctype.h>
 
-void divisao(char div[3][50]) {
+static bool shaking = false;
+
+// Splits the string in str_array[0] by "/" and stores parts in str_array[1] and str_array[2]
+void split_string(char str_array[3][50]) {
     int index = 0;
-    for (int i = 1; i < 3; i++) strcpy(div[i], "");
-    if (strlen(div[0]) != strcspn(div[0], "/")) {
-        char* token = strtok(div[0], "/");
+    for (int i = 1; i < 3; i++) strcpy(str_array[i], "");
+    if (strlen(str_array[0]) != strcspn(str_array[0], "/")) {
+        char* token = strtok(str_array[0], "/");
 
         while (token != NULL) {
-            strcpy(div[index], token);
+            strcpy(str_array[index], token);
             index++;
             token = strtok(NULL, "/");
         }
     } 
 }
 
-int igualdade(char a[3][50], char b[3][50]) {
-    int igual = 0;
-    int contA = 0; int contB = 0;
+// Checks for equality or partial match between two string arrays
+int check_equality(char a[3][50], char b[3][50]) {
+    int equal_count = 0;
+    int count_a = 0; int count_b = 0;
 
     for (int i = 0; i < 3; i++) {
         if (strlen(b[i]) == 0) continue; 
-        contB++;
+        count_b++;
     }   
 
     for (int i = 0; i < 3; i++) {
         if (strlen(a[i]) == 0) continue; 
-        contA++;
+        count_a++;
 
-        bool achou = false;
+        bool found = false;
         for (int j = 0; j < 3; j++) {
             if (strlen(b[j]) == 0) continue; 
             if ((strcmp(a[i],b[j]) == 0)) {
-                achou = true;
+                found = true;
                 break;
             }
         }
-        if (achou) igual++;
+        if (found) equal_count++;
     }
-    // printf("ContB: %d contA: %d\n", contB, contA);
-    if (contA == igual && contA == contB) return 1;
-    if (igual > 0) return 2;
-    return 0;
+    // printf("CountB: %d countA: %d\n", count_b, count_a);
+    if (count_a == equal_count && count_a == count_b) return 1; // Full match
+    if (equal_count > 0) return 2; // Partial match
+    return 0; // No match
+}
+
+Vector2 shake (float power, float *time) {
+    Vector2 offset = {0.0f, 0.0f};
+
+    *time -= GetFrameTime();
+            
+    if (*time <= 0) {
+        *time = 0;
+        shaking = false;
+    }
+    else {
+        float offsetX = (float)GetRandomValue(-100, 100) / 100.0f;
+        float offsetY = (float)GetRandomValue(-100, 100) / 100.0f;
+        
+        // Apply the intensity to the random direction
+        offset.x = offsetX * power;
+        offset.y = offsetY * power;
+    }
+    return offset;
 }
 
 typedef struct
 {
-    char nome[50];
-    int ano;
-    char origem[50];
-    char genero[3][50];
-    char tema[50];
+    char name[50];
+    int year;
+    char origin[50];
+    char genre[3][50];
+    char theme[50];
     char gamemode[3][50];
-    char plataforma[3][50];
-    char frase[200];
-} GAME;
+    char platform[3][50];
+    char phrase[200];
+} game_t;
 
 
 
 int main() {
     srand(time(NULL));
 
-    #pragma region CARREGAR LISTA
-    FILE *lista;
-    GAME jogos[100];
+    #pragma region LOAD LIST
+    FILE *list_file;
+    game_t games[100];
 
-    lista = fopen("list.txt", "r");
-    if (lista == NULL){
-        perror("LISTA NÃO CARREGADA\n");
+    list_file = fopen("list.txt", "r");
+    if (list_file == NULL){
+        perror("LIST NOT LOADED\n");
         exit(1);
     }
-    for (int i = 0; fscanf(lista, "%49[^;];%d;%49[^;];%49[^;];%49[^;];%49[^;];%49[^;];\n", jogos[i].nome, &jogos[i].ano, jogos[i].origem, jogos[i].genero[0], jogos[i].tema, jogos[i].gamemode[0], jogos[i].plataforma[0]) == 7; i++) {
-        divisao(jogos[i].genero);
-        divisao(jogos[i].gamemode);
-        divisao(jogos[i].plataforma);
-        for (int j = 0; j < 3; j++) printf("%s: %s\n", jogos[i].nome,jogos[i].plataforma[j]);
+    for (int i = 0; fscanf(list_file, "%49[^;];%d;%49[^;];%49[^;];%49[^;];%49[^;];%49[^;];\n", games[i].name, &games[i].year, games[i].origin, games[i].genre[0], games[i].theme, games[i].gamemode[0], games[i].platform[0]) == 7; i++) {
+        split_string(games[i].genre);
+        split_string(games[i].gamemode);
+        split_string(games[i].platform);
+        // for (int j = 0; j < 3; j++) printf("%s: %s\n", games[i].name, games[i].platform[j]);
     }
 
-    fclose(lista);
+    fclose(list_file);
     #pragma endregion
 
-    #pragma region CARREGAR FRASES
+    #pragma region LOAD PHRASES
 
-    FILE *listaFrases;
+    FILE *phrases_file;
 
-    listaFrases = fopen("frases.txt", "r");
-    if (listaFrases == NULL){
-        perror("LISTA NÃO CARREGADA\n");
+    phrases_file = fopen("frases.txt", "r");
+    if (phrases_file == NULL){
+        perror("PHRASE LIST NOT LOADED\n");
         exit(1);
     }
 
-    for (int i = 0; fscanf(listaFrases, " %199[^\n]\n", jogos[i].frase) == 1; i++) {
-        // printf("%s: %s\n", jogos[i].nome,jogos[i].frase);
+    for (int i = 0; fscanf(phrases_file, " %199[^\n]\n", games[i].phrase) == 1; i++) {
+        // printf("%s: %s\n", games[i].name, games[i].phrase);
     }
 
     #pragma endregion
 
-    #pragma region JANELA
-    int largura = 1280;
-    int altura = 720;
-    InitWindow(largura, altura, "GAMEPLAY");
+    #pragma region WINDOW
+    int screen_width = 1280;
+    int screen_height = 720;
+    InitWindow(screen_width, screen_height, "GAMEPLAY");
     #pragma endregion
 
-    #pragma region JOGOS
-    char entrada[50] = "";
+    #pragma region GAMES
+    char user_input[50] = "";
 
-    GAME *tentativas;
-    int t = -1;
-    int tSelec = 0;
+    game_t *attempts;
+    int attempt_count = -1;
+    int selected_attempt_index = 0;
 
-    GAME pesquisa[5];
-    int selecionado = 0;
+    game_t search_results[5];
+    int selected_search_index = 0;
 
-    tentativas = calloc(t+1, sizeof(GAME));
+    attempts = calloc(attempt_count + 1, sizeof(game_t));
 
-    GAME correto;
-    int c = (rand() % (100));
-    // correto = jogos[0];
-    correto = jogos[c];
+    game_t correct_game;
+    // int correct_index = (rand() % (100));
+    // correct_game = games[0];
+    correct_game = games[0];
 
-    printf("%s\n", correto.nome);
+    printf("%s\n", correct_game.name);
     #pragma endregion 
 
-    int index = 0;
-    int capslock = 0;
+    int input_index = 0;
+    int capslock_on = 0;
 
-    bool ajuda1 = false;
-    bool ajuda2 = false;
-    bool ajuda3 = false;
+    bool hint_1 = false;
+    bool hint_2 = false;
+    bool hint_3 = false;
 
-    //Flecha que indica maior ou menor ano
-    Image flechaIm = LoadImage("sources/flecha.png");
-    Texture2D flecha = LoadTextureFromImage(flechaIm);
+    //Arrow to indicate higher or lower year
+    Image arrow_image = LoadImage("sources/flecha.png");
+    Texture2D arrow_texture = LoadTextureFromImage(arrow_image);
 
-    //Coração de vida
-    Image coracaoIm = LoadImage("sources/coracao.png");
-    Texture2D coracao = LoadTextureFromImage(coracaoIm);
+    //Health heart
+    Image heart_image = LoadImage("sources/coracao.png");
+    Texture2D heart_texture = LoadTextureFromImage(heart_image);
 
-    //Bandeira
-    Image bandeiraIM = LoadImage(TextFormat("sources/flags/%s.png", correto.origem));
-    Texture2D bandeira = LoadTextureFromImage(bandeiraIM);
+    //Flag
+    Image flag_image = LoadImage(TextFormat("sources/flags/%s.png", correct_game.origin));
+    Texture2D flag_texture = LoadTextureFromImage(flag_image);
 
-    //Capa
-        //Nome do arquivo da capa
-    char nomeJogo[40];
+    //Cover Art
+        //Cover art filename
+    char game_name_formatted[40];
 
     // for (int i = 0; i < 100; i++) {
-    //     strcpy(nomeJogo, jogos[i].nome);
+    //     strcpy(game_name_formatted, games[i].name);
 
-    //     for (int i = 0; i < strlen(nomeJogo); i++) {
-    //         if (nomeJogo[i] == ' ' || nomeJogo[i] == ',' || nomeJogo[i] == '-' || nomeJogo[i] == ':'){ 
+    //     for (int i = 0; i < strlen(game_name_formatted); i++) {
+    //         if (game_name_formatted[i] == ' ' || game_name_formatted[i] == ',' || game_name_formatted[i] == '-' || game_name_formatted[i] == ':'){ 
     //             if (i < 5) {
-    //                 nomeJogo[i] = '_';
+    //                 game_name_formatted[i] = '_';
     //             } else {
-    //                 nomeJogo[i] = '\0';
+    //                 game_name_formatted[i] = '\0';
     //                 break;
     //             }
     //         }
     //     }
 
-    //     printf("%s\n", nomeJogo);
+    //     printf("%s\n", game_name_formatted);
     // }
 
-    strcpy(nomeJogo, correto.nome);
-    for (int i = 0; i < (int)strlen(nomeJogo); i++) {
-        if (nomeJogo[i] == ' ' || nomeJogo[i] == ',' || nomeJogo[i] == '-' || nomeJogo[i] == ':'){ 
+    strcpy(game_name_formatted, correct_game.name);
+    for (int i = 0; i < (int)strlen(game_name_formatted); i++) {
+        if (game_name_formatted[i] == ' ' || game_name_formatted[i] == ',' || game_name_formatted[i] == '-' || game_name_formatted[i] == ':'){ 
             if (i < 5) {
-                nomeJogo[i] = '_';
+                game_name_formatted[i] = '_';
             } else {
-                nomeJogo[i] = '\0';
+                game_name_formatted[i] = '\0';
                 break;
             }
         }
     }
 
-        //Carregar a capa
-    char imagem[50];
-    sprintf(imagem, "capas/capa_%s.jpg", nomeJogo); 
+        //Load the cover art
+    char image_path[50];
+    sprintf(image_path, "capas/capa_%s.jpg", game_name_formatted); 
 
-    Image image = LoadImage(imagem);
-    Texture2D capa = capa = LoadTextureFromImage(image);
+    Image image = LoadImage(image_path);
+    Texture2D cover_texture = LoadTextureFromImage(image);
     UnloadImage(image);
 
-    //Shader para borrar
-    Shader borrar = LoadShader(0, "capas/blur.fs");
-    int viewSizeLoc = GetShaderLocation(borrar, "viewSize");
-    RenderTexture2D objetoBorrado = LoadRenderTexture(capa.width, capa.height);
-    float tamanhoText[2] = { (float)capa.width, (float)capa.height };
-    SetShaderValue(borrar, viewSizeLoc, tamanhoText, SHADER_UNIFORM_VEC2);
+    //Shader for blurring
+    Shader blur_shader = LoadShader(0, "capas/blur.fs");
+    int view_size_loc = GetShaderLocation(blur_shader, "viewSize");
+    RenderTexture2D blurred_object_rt = LoadRenderTexture(cover_texture.width, cover_texture.height);
+    float texture_size[2] = { (float)cover_texture.width, (float)cover_texture.height };
+    SetShaderValue(blur_shader, view_size_loc, texture_size, SHADER_UNIFORM_VEC2);
+
+    // Camera
+    Camera2D camera = {0};
+    Vector2 baseCameraOffset = (Vector2){ screen_width/2, screen_height/2.0f };
+    camera.offset = baseCameraOffset;
+    camera.target = (Vector2){screen_width/2, screen_height/2};
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+
+    float shake_time = 0;
+    float shake_power = 0;
+
+    char name_temp[100];
 
     while (!WindowShouldClose()) {
-        // printf("%s\n", nomeJogo);
+        camera.offset = Vector2Add(baseCameraOffset, shake(shake_power, &shake_time));
 
-        //Borrar a imagem
-
-        BeginTextureMode(objetoBorrado);     
+        //Blur the image
+        BeginTextureMode(blurred_object_rt);        
             ClearBackground(BLANK);
             
-            BeginShaderMode(borrar);  
-                DrawTexture(capa, 0,0, WHITE);
-            EndShaderMode();                
+            BeginShaderMode(blur_shader);   
+                DrawTexture(cover_texture, 0,0, WHITE);
+            EndShaderMode();            
 
         EndTextureMode();
 
-        int maxSelec = 4;
-        for (int i = 0; i < 5; i++) if (strcmp(pesquisa[i].nome, "") == 0) maxSelec--;
+        int max_selection_index = 4;
+        for (int i = 0; i < 5; i++) if (strcmp(search_results[i].name, "") == 0) max_selection_index--;
 
-        //Setas
+        //Arrows
         if (IsKeyPressed(KEY_DOWN)) {
-            selecionado++;
-            if (selecionado > maxSelec) selecionado = 0;
+            selected_search_index++;
+            if (selected_search_index > max_selection_index) selected_search_index = 0;
         }
         if (IsKeyPressed(KEY_UP)) {
-            selecionado--;
-            if (selecionado < 0) selecionado = maxSelec;
+            selected_search_index--;
+            if (selected_search_index < 0) selected_search_index = max_selection_index;
         }
 
         if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
-            tSelec--;
+            selected_attempt_index--;
         }
 
         if (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT)) {
-            tSelec++;
-            if (tSelec > t) tSelec = t;
+            selected_attempt_index++;
+            if (selected_attempt_index > attempt_count) selected_attempt_index = attempt_count;
         }
-        if (tSelec <= 0) tSelec = 0;
+        if (selected_attempt_index <= 0) selected_attempt_index = 0;
 
-        //Escrever a entrada do usuário
-        int tecla = GetKeyPressed();
-        if ((tecla >= 32) && (tecla <= 125) && index < 50) {
-            if (capslock == 1 || (int)IsKeyDown(KEY_LEFT_SHIFT) == 1 || (int)IsKeyDown(KEY_RIGHT_SHIFT) == 1) entrada[index] = (char)tecla;
-            else entrada[index] = tolower((char)tecla);
+        //Write user input
+        int key_pressed = GetKeyPressed();
+        if ((key_pressed >= 32) && (key_pressed <= 125) && input_index < 50) {
+            if (capslock_on == 1 || (int)IsKeyDown(KEY_LEFT_SHIFT) == 1 || (int)IsKeyDown(KEY_RIGHT_SHIFT) == 1) user_input[input_index] = (char)key_pressed;
+            else user_input[input_index] = tolower((char)key_pressed);
             
-            selecionado = 0;
-            index++;
-            entrada[index] = '\0';
-            tecla = GetCharPressed();
+            selected_search_index = 0;
+            input_index++;
+            user_input[input_index] = '\0';
+            key_pressed = GetCharPressed(); // Consumes the char press
         }
 
-        if ((IsKeyPressedRepeat(KEY_BACKSPACE) || IsKeyPressed(KEY_BACKSPACE))&& index > 0) {
+        if ((IsKeyPressedRepeat(KEY_BACKSPACE) || IsKeyPressed(KEY_BACKSPACE))&& input_index > 0) {
             if (IsKeyDown(KEY_LEFT_CONTROL)) {
-                entrada[0] = '\0';
-                index = 0;
+                user_input[0] = '\0';
+                input_index = 0;
+            } else { // Check added to avoid out-of-bounds on ctrl+backspace
+                input_index--;
+                user_input[input_index] = '\0';
             }
-            index--;
-            entrada[index] = '\0';
         }
 
-        //Pesquisa
-        for (int l = 0; l < 5; l++) strcpy(pesquisa[l].nome, "");
-        if (entrada[0] != '\0') {
+        //Search
+        for (int l = 0; l < 5; l++) strcpy(search_results[l].name, "");
+        if (user_input[0] != '\0') {
             for (int l = 0, j = 0; l < 100 && j < 5; l++) {
-                char a[strlen(entrada)+1];
-                for (int k = 0; k <= (int)strlen(entrada); k++) {
-                    a[k] = jogos[l].nome[k];
+                char temp_substr[strlen(user_input)+1];
+                for (int k = 0; k <= (int)strlen(user_input); k++) {
+                    temp_substr[k] = games[l].name[k];
                 }
-                a[strlen(entrada)] = '\0';
+                temp_substr[strlen(user_input)] = '\0';
 
-                if (strcasecmp(entrada, a) == 0)  {
-                    pesquisa[j] = jogos[l];
+                if (strcasecmp(user_input, temp_substr) == 0)   {
+                    search_results[j] = games[l];
                     j++;
                 }
             }
         }
 
-        //Tentativa
-        if (IsKeyPressed(KEY_ENTER) && strcmp(pesquisa[selecionado].nome, "") != 0) {
-            t++;
-            tSelec = t;
-            // printf("%d\n", t);
-            tentativas = realloc(tentativas, (t+1) * sizeof(GAME));
-            tentativas[t] = pesquisa[selecionado];
-            strcpy(entrada, " ");
-            for (int i = 0; i < 100; i++) if (strcmp(pesquisa[selecionado].nome, jogos[i].nome) == 0) strcpy(jogos[i].nome, "");
-            index = 0;
+        //Attempt
+        if (IsKeyPressed(KEY_ENTER) && strcmp(search_results[selected_search_index].name, "") != 0) {
+            attempt_count++;
+            selected_attempt_index = attempt_count;
+            // printf("%d\n", attempt_count);
+            attempts = realloc(attempts, (attempt_count + 1) * sizeof(game_t));
+            attempts[attempt_count] = search_results[selected_search_index];
 
-            if (strlen(tentativas[t].nome) >= 10) {
-                for (int i = (int)strlen(tentativas[t].nome)/3; i < (int)strlen(tentativas[t].nome); i++) {
-                    if (tentativas[t].nome[i] == ' ') {
-                        tentativas[t].nome[i] = '\n';
+            if (strcmp(search_results[selected_search_index].name, correct_game.name) != 0) {
+                shaking = true;
+                shake_time = 0.5;
+                shake_power = 1.5;
+            }
+
+            strcpy(user_input, " ");
+            for (int i = 0; i < 100; i++) if (strcmp(search_results[selected_search_index].name, games[i].name) == 0) strcpy(games[i].name, "");
+            input_index = 0;
+
+            if (strlen(attempts[attempt_count].name) >= 10) {
+                for (int i = (int)strlen(attempts[attempt_count].name)/3; i < (int)strlen(attempts[attempt_count].name); i++) {
+                    if (attempts[attempt_count].name[i] == ' ') {
+                        attempts[attempt_count].name[i] = '\n';
                         break;
                     }
 
@@ -291,139 +335,151 @@ int main() {
             }
         }
 
-        //Desenhar na tela
+        //Draw on screen
         BeginDrawing();
 
+        BeginMode2D(camera);
         ClearBackground((Color){30,30,30,255});
-        DrawText(entrada, largura/2-MeasureText(entrada, 30)/2, 30/2, 30, RAYWHITE);
+        DrawText(user_input, screen_width/2-MeasureText(user_input, 30)/2, 30/2, 30, RAYWHITE);
         for (int j = 0; j < 5; j++) {
-            DrawText(pesquisa[j].nome, largura/2-MeasureText(pesquisa[j].nome, 30)/2, 30*(2+1.5*j), 30, (selecionado == j ? BLUE : PINK));
+            DrawText(search_results[j].name, screen_width/2-MeasureText(search_results[j].name, 30)/2, 30*(2+1.5*j), 30, (selected_search_index == j ? BLUE : PINK));
         }
 
-        if (t!=-1) DrawText(TextFormat("%d", tSelec+1), largura-MeasureText(TextFormat("%d", tSelec+1), 30)-30, 15, 30, WHITE);
-        if (strcmp(tentativas[tSelec].nome, "") != 0) {
-            GAME jogoSelec = tentativas[tSelec];
+        if (attempt_count != -1) DrawText(TextFormat("%d", selected_attempt_index + 1), screen_width - MeasureText(TextFormat("%d", selected_attempt_index + 1), 30) - 30, 15, 30, WHITE);
+        if (attempt_count != -1 && strcmp(attempts[selected_attempt_index].name, "") != 0) { // Added attempt_count check
+            game_t selected_game = attempts[selected_attempt_index];
             
-            DrawText(jogoSelec.nome, 20, altura - 180, 30, PINK);
+            DrawText(selected_game.name, 20, screen_height - 180, 30, PINK);
 
-            int pulo = 20;
+            int x_offset = 20;
 
-            //ANO
-            if (jogoSelec.ano == correto.ano) DrawText(TextFormat("%d",jogoSelec.ano), 20, altura - 80, 30, GREEN);
+            //YEAR
+            if (selected_game.year == correct_game.year) DrawText(TextFormat("%d",selected_game.year), 20, screen_height - 80, 30, GREEN);
             else {
-                // if (jogoSelec.ano > correto.ano) flecha. = -16;
-                // else flecha.height = 16;
-                DrawText(TextFormat("%d",jogoSelec.ano), pulo, altura - 80, 30, RED);
-                DrawTexturePro(flecha, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(TextFormat("%d",jogoSelec.ano), 30) + 35, altura - 67, 15, 14}, (Vector2){7,7}, (jogoSelec.ano > correto.ano ? 180 : 0), WHITE);    
-                // DrawTextureEx(flecha, (Vector2){MeasureText(ano, 30) + 35, 413},  (jogoSelec.ano > correto.ano ? 180 : 0), 1, WHITE);
+                // if (selected_game.year > correct_game.year) arrow_texture.height = -16; // Original comment was broken
+                // else arrow_texture.height = 16;
+                DrawText(TextFormat("%d",selected_game.year), x_offset, screen_height - 80, 30, RED);
+                DrawTexturePro(arrow_texture, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(TextFormat("%d",selected_game.year), 30) + 35, screen_height - 67, 15, 14}, (Vector2){7,7}, (selected_game.year > correct_game.year ? 180 : 0), WHITE);   
+                // DrawTextureEx(arrow_texture, (Vector2){MeasureText(year, 30) + 35, 413},  (selected_game.year > correct_game.year ? 180 : 0), 1, WHITE);
             }
 
-            pulo += MeasureText(TextFormat("%d",jogoSelec.ano), 30) + 33;
+            x_offset += MeasureText(TextFormat("%d",selected_game.year), 30) + 33;
 
-            //ORIGEM
-            UnloadImage(bandeiraIM);
-            UnloadTexture(bandeira);
-            bandeiraIM = LoadImage(TextFormat("sources/flags/%s.png", jogoSelec.origem));
-            bandeira = LoadTextureFromImage(bandeiraIM);
+            //ORIGIN
 
-            DrawTexturePro(bandeira, (Rectangle){0, 0, (float)bandeira.width, (float)bandeira.height}, (Rectangle){pulo, altura - 80, bandeira.width*2, bandeira.height*2}, (Vector2){0,0}, 0, WHITE);
-            DrawRectangleLinesEx((Rectangle){pulo, altura - 80, bandeira.width*2, bandeira.height*2}, 2.5, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
-            // DrawText(jogoSelec.origem, pulo, altura - 80, 30, (strcmp(jogoSelec.origem, correto.origem) == 0) ? GREEN : RED);
+            if (strcmp(name_temp, selected_game.origin) != 0) {
+                UnloadImage(flag_image);
+                UnloadTexture(flag_texture);
+                flag_image = LoadImage(TextFormat("sources/flags/%s.png", selected_game.origin));
+                flag_texture = LoadTextureFromImage(flag_image);
 
-            pulo += bandeira.width*2 + 20;
-
-            //GENERO
-            int gIgualdade = igualdade(correto.genero, jogoSelec.genero);
-            if (gIgualdade == 1) DrawText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), pulo, altura - 80, 30, GREEN);
-            else DrawText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), pulo, altura - 80, 30, (gIgualdade == 0) ? RED : YELLOW);
-
-            pulo += MeasureText(TextFormat("%s\n%s", jogoSelec.genero[0], jogoSelec.genero[1]), 30) + 20;
-
-            // //TEMA
-            if (strlen(jogoSelec.tema) != strcspn(jogoSelec.tema, " ")) {
-                jogoSelec.tema[strcspn(jogoSelec.tema, " ")] = '\n';
+                strcpy(name_temp, selected_game.origin);
             }
 
-            DrawText(jogoSelec.tema, pulo, altura - 80, 30, (strcmp(jogoSelec.tema, correto.tema) == 0) ? GREEN : RED);
             
-            pulo += MeasureText(jogoSelec.tema, 30) + 20;
+
+            DrawTexturePro(flag_texture, (Rectangle){0, 0, (float)flag_texture.width, (float)flag_texture.height}, (Rectangle){x_offset, screen_height - 80, flag_texture.width*2, flag_texture.height*2}, (Vector2){0,0}, 0, WHITE);
+            DrawRectangleLinesEx((Rectangle){x_offset, screen_height - 80, flag_texture.width*2, flag_texture.height*2}, 2.5, (strcmp(selected_game.origin, correct_game.origin) == 0) ? GREEN : RED);
+            // DrawText(selected_game.origin, x_offset, screen_height - 80, 30, (strcmp(selected_game.origin, correct_game.origin) == 0) ? GREEN : RED);
+
+            x_offset += flag_texture.width*2 + 20;
+
+            //GENRE
+            int genre_equality = check_equality(correct_game.genre, selected_game.genre);
+            if (genre_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset, screen_height - 80, 30, GREEN);
+            else DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset, screen_height - 80, 30, (genre_equality == 0) ? RED : YELLOW);
+
+            x_offset += MeasureText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), 30) + 20;
+
+            //THEME
+            if (strlen(selected_game.theme) != strcspn(selected_game.theme, " ")) {
+                selected_game.theme[strcspn(selected_game.theme, " ")] = '\n';
+            }
+
+            DrawText(selected_game.theme, x_offset, screen_height - 80, 30, (strcmp(selected_game.theme, correct_game.theme) == 0) ? GREEN : RED);
+            
+            x_offset += MeasureText(selected_game.theme, 30) + 20;
 
             //GAMEMODE
-            int gaIgualdade = igualdade(correto.gamemode, jogoSelec.gamemode);
-            if (gaIgualdade == 1) DrawText(TextFormat("%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]), pulo, altura - 80, 30, GREEN);
-            else DrawText(TextFormat("%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]), pulo, altura - 80, 30, (gaIgualdade == 0) ? RED : YELLOW);
+            int gamemode_equality = check_equality(correct_game.gamemode, selected_game.gamemode);
+            if (gamemode_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset, screen_height - 80, 30, GREEN);
+            else DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset, screen_height - 80, 30, (gamemode_equality == 0) ? RED : YELLOW);
 
-            pulo += MeasureText(TextFormat("%s\n%s", jogoSelec.gamemode[0], jogoSelec.gamemode[1]), 30) + 20;
+            x_offset += MeasureText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), 30) + 20;
 
-            //PLATAFORMA
-            int pIgualdade = igualdade(correto.plataforma, jogoSelec.plataforma);
-            int qntPlata = 2;
-            for (int i = 0; i < 3; i++) if (strcmp(jogoSelec.plataforma[i], "") == 0) qntPlata--;
-            if (pIgualdade == 1) DrawText(TextFormat("%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]), pulo, altura - 80 - 30*qntPlata/2, 30, GREEN);
-            else DrawText(TextFormat("%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]), pulo, altura - 80 - 30*qntPlata/2, 30, (pIgualdade == 0) ? RED : YELLOW);
+            //PLATFORM
+            int platform_equality = check_equality(correct_game.platform, selected_game.platform);
+            int platform_count = 2;
+            for (int i = 0; i < 3; i++) if (strcmp(selected_game.platform[i], "") == 0) platform_count--;
+            if (platform_equality == 1) DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset, screen_height - 80 - 30*platform_count/2, 30, GREEN);
+            else DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset, screen_height - 80 - 30*platform_count/2, 30, (platform_equality == 0) ? RED : YELLOW);
 
-            pulo += MeasureText(TextFormat("%s\n%s\n%s", jogoSelec.plataforma[0], jogoSelec.plataforma[1], jogoSelec.plataforma[2]), 30) + 10;
+            x_offset += MeasureText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), 30) + 10;
         }
 
-        //BOTÃO
-        // Vector2 mousePos = GetMousePosition();
-        // Vector2 botao1 = {largura-100, 30};
-        // Vector2 botao2 = {largura-100, 75};
-        // Vector2 botao3 = {largura-100, 120};
+        //BUTTON
+        // Vector2 mouse_pos = GetMousePosition();
+        // Vector2 button_1 = {screen_width-100, 30};
+        // Vector2 button_2 = {screen_width-100, 75};
+        // Vector2 button_3 = {screen_width-100, 120};
 
-        // if (t > 3) DrawCircle(botao1.x, botao1.y, 15, (ajuda1) ? BLUE : WHITE);
-        // if (t > 6) DrawCircle(botao2.x, botao2.y, 15, (ajuda2) ? BLUE : WHITE);
-        // if (t > 8) DrawCircle(botao3.x, botao3.y, 15, (ajuda3) ? BLUE : WHITE);
+        // if (attempt_count > 3) DrawCircle(button_1.x, button_1.y, 15, (hint_1) ? BLUE : WHITE);
+        // if (attempt_count > 6) DrawCircle(button_2.x, button_2.y, 15, (hint_2) ? BLUE : WHITE);
+        // if (attempt_count > 8) DrawCircle(button_3.x, button_3.y, 15, (hint_3) ? BLUE : WHITE);
 
 
-        // float dist1 = sqrt(pow(mousePos.x - botao1.x, 2) + pow(mousePos.y - botao1.y, 2));
-        // float dist2 = sqrt(pow(mousePos.x - botao2.x, 2) + pow(mousePos.y - botao2.y, 2));
-        // float dist3 = sqrt(pow(mousePos.x - botao3.x, 2) + pow(mousePos.y - botao3.y, 2));
+        // float dist_1 = sqrt(pow(mouse_pos.x - button_1.x, 2) + pow(mouse_pos.y - button_1.y, 2));
+        // float dist_2 = sqrt(pow(mouse_pos.x - button_2.x, 2) + pow(mouse_pos.y - button_2.y, 2));
+        // float dist_3 = sqrt(pow(mouse_pos.x - button_3.x, 2) + pow(mouse_pos.y - button_3.y, 2));
 
-        // if (dist1 < 15 && t > 3) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda1 = true;
-        // if (dist2 < 15 && t > 6) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda2 = true;
-        // if (dist3 < 15 && t > 8) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) ajuda3 = true;
+        // if (dist_1 < 15 && attempt_count > 3) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) hint_1 = true;
+        // if (dist_2 < 15 && attempt_count > 6) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) hint_2 = true;
+        // if (dist_3 < 15 && attempt_count > 8) if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) hint_3 = true;
 
-        //Vidas
-        int vidas = 20-t-1;
+        //Lives
+        int lives = 20 - attempt_count - 1;
 
-        for (int i = 0; i < (int)ceil((double)vidas/2); i++) {
+        for (int i = 0; i < (int)ceil((double)lives / 2); i++) {
             int sprite = 0;
             Color color = WHITE;
-            if (i == vidas/2 && vidas%2 != 0) sprite = 1;
-            if (i == 15 || i == 7 || i == 3 ) color = (Color){240,255,0,(((int)GetTime() % 2 == 0 ) ? 255 : 0)};
-            DrawTexturePro(coracao, (Rectangle){8*sprite,8*sprite,8,8}, (Rectangle){24*i,0,32,32}, (Vector2){0,0}, 0, color);
+            if (i == lives / 2 && lives % 2 != 0) sprite = 1;
+            if (i == 15 || i == 7 || i == 3 ) color = (Color){240,255,0,255}; // Example: special color for thresholds
+            DrawTexturePro(heart_texture, (Rectangle){8.0f * sprite, 8.0f * sprite, 8, 8}, (Rectangle){24.0f * i, 0, 32, 32}, (Vector2){0,0}, 0, color);
         }
 
-        if (vidas <= 15) ajuda1 = true;
-        if (vidas <= 7) ajuda2 = true;
-        if (vidas <= 3) ajuda3 = true;
+        if (lives <= 15) hint_1 = true;
+        if (lives <= 7) hint_2 = true;
+        if (lives <= 3) hint_3 = true;
 
-        //Ajudas
-        if (ajuda1) printf("%s\n", correto.frase);
-        if (ajuda2) {
-            Rectangle sourceRect = { 0, 0, (float)objetoBorrado.texture.width, (float)-objetoBorrado.texture.height };
-            Vector2 destPos = { largura-capa.width-20, altura-capa.height-20};
-            DrawTextureRec(objetoBorrado.texture, sourceRect, destPos, WHITE);
+        //Hints
+        if (hint_1) {
+            // Example: Draw the hint text instead of printing to console
+            DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 250, 20, YELLOW);
         }
-        if (ajuda3) {
-            DrawTexture(capa, largura-capa.width-20, altura-capa.height-20, WHITE);
+        if (hint_2) {
+            Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
+            Vector2 destPos = { screen_width - cover_texture.width - 20.0f, screen_height - cover_texture.height - 20.0f};
+            DrawTextureRec(blurred_object_rt.texture, sourceRect, destPos, WHITE);
+        }
+        if (hint_3) {
+            DrawTexture(cover_texture, screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, WHITE);
         }
 
-        DrawRectangleLines(largura-capa.width-20, altura-capa.height-20, objetoBorrado.texture.width, objetoBorrado.texture.height, DARKBLUE);
+        DrawRectangleLines(screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, DARKBLUE);
 
+        EndMode2D();
         EndDrawing();
     }
 
-    UnloadRenderTexture(objetoBorrado);
-    UnloadShader(borrar);
-    UnloadTexture(flecha);
-    UnloadImage(flechaIm);
-    UnloadTexture(bandeira);
-    UnloadImage(bandeiraIM);
-    UnloadTexture(coracao);
-    UnloadImage(coracaoIm);
-    UnloadTexture(capa);
-    free(tentativas);
+    UnloadRenderTexture(blurred_object_rt);
+    UnloadShader(blur_shader);
+    UnloadTexture(arrow_texture);
+    UnloadImage(arrow_image);
+    UnloadTexture(flag_texture);
+    UnloadImage(flag_image);
+    UnloadTexture(heart_texture);
+    UnloadImage(heart_image);
+    UnloadTexture(cover_texture);
+    free(attempts);
     return 0;
 }

@@ -28,7 +28,6 @@ Rocket League;2015;EUA;Esporte;Competitivo;Multi;PC/Console;
 The Sims 4;2014;EUA;Simulacao;Vida real;Single;PC/Console;
 Animal Crossing;2020;Japao;Simulacao;Vida cotidiana;Single/Multi;Console;
 Undertale;2015;EUA;RPG;Fantasia;Single;PC/Console;
-<<<<<<< HEAD
 Cuphead;2017;Canada;Plataforma;Acao;Single/Multi;PC/Console;
 Resident Evil 4;2023;Japao;Terror;Acao;Single;PC/Console;
 Monster Hunter Rise;2021;Japao;Acao/RPG;Fantasia;Single/Multi;PC/Console;
@@ -41,20 +40,6 @@ Tetris Effect;2021;Japao;Puzzle;Abstrato;Single/Multi;PC/Console;
 Dead Cells;2018;Franca;Roguelike;Acao;Single;PC/Console;
 Subnautica;2018;Reino Unido;Sobrevivencia;Exploracao;Single;PC/Console;
 Cities: Skylines II;2023;Finlandia;Simulacao;Estrategia;Single;PC/Console;
-=======
-Cuphead;2017;Canadá;Plataforma;Ação;Single/Multi;PC/Console; PAREI AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
-Resident Evil 4;2023;Japão;Terror;Ação;Single;PC/Console; PROXIMOOOOOOOOOOOOOOOO
-Monster Hunter Rise;2021;Japão;Ação/RPG;Fantasia;Single/Multi;PC/Console;
-Doom Eternal;2020;EUA;Tiro;Ação;Single;PC/Console;
-Sekiro;2019;Japão;Ação/Aventura;Fantasia;Single;PC/Console;
-Persona 5 Royal;2019;Japão;RPG;Drama;Single;Console;
-Horizon Forbidden West;2022;EUA;Ação/Aventura;Futurista;Single;Console;
-No Mans Sky;2016;Reino Unido;Exploração;Ficção científica;Single/Multi;PC/Console;
-Tetris Effect;2021;Japão;Puzzle;Abstrato;Single/Multi;PC/Console;
-Dead Cells;2018;França;Roguelike;Ação;Single;PC/Console;
-Subnautica;2018;Reino Unido;Sobrevivência;Exploração;Single;PC/Console;
-Cities: Skylines II;2023;Finlândia;Simulação;Estratégia;Single;PC/Console;
->>>>>>> refs/remotes/origin/main
 Slay the Spire;2019;EUA;Card Game;Roguelike;Single;PC/Console/Celular;
 Forza Horizon 5;2021;Reino Unido;Corrida;Esporte;Single/Multi;PC/Console;
 Assassins Creed Valhalla;2020;Canada;Acao/Aventura;Historico;Single;PC/Console;
