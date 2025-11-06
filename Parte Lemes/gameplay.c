@@ -389,8 +389,10 @@ int main() {
 
         for (int i = 0; i < (int)ceil((double)vidas/2); i++) {
             int sprite = 0;
+            Color color = WHITE;
             if (i == vidas/2 && vidas%2 != 0) sprite = 1;
-            DrawTexturePro(coracao, (Rectangle){8*sprite,8*sprite,8,8}, (Rectangle){24*i,0,32,32}, (Vector2){0,0}, 0, WHITE);
+            if (i == 15 || i == 7 || i == 3 ) color = (Color){240,255,0,(((int)GetTime() % 2 == 0 ) ? 255 : 0)};
+            DrawTexturePro(coracao, (Rectangle){8*sprite,8*sprite,8,8}, (Rectangle){24*i,0,32,32}, (Vector2){0,0}, 0, color);
         }
 
         if (vidas <= 15) ajuda1 = true;
