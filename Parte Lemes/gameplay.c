@@ -7,6 +7,9 @@
 #include <ctype.h>
 
 static bool shaking = false;
+static float shake_time = 0;
+static float shake_power = 0;
+bool win = false;
 
 // Splits the string in str_array[0] by "/" and stores parts in str_array[1] and str_array[2]
 void split_string(char str_array[3][50]) {
@@ -53,13 +56,13 @@ int check_equality(char a[3][50], char b[3][50]) {
     return 0; // No match
 }
 
-Vector2 shake (float power, float *time) {
+Vector2 shake_offset () {
     Vector2 offset = {0.0f, 0.0f};
 
-    *time -= GetFrameTime();
+    shake_time -= GetFrameTime();
             
-    if (*time <= 0) {
-        *time = 0;
+    if (shake_time <= 0) {
+        shake_time = 0;
         shaking = false;
     }
     else {
@@ -67,10 +70,16 @@ Vector2 shake (float power, float *time) {
         float offsetY = (float)GetRandomValue(-100, 100) / 100.0f;
         
         // Apply the intensity to the random direction
-        offset.x = offsetX * power;
-        offset.y = offsetY * power;
+        offset.x = offsetX * shake_power;
+        offset.y = offsetY * shake_power;
     }
     return offset;
+}
+
+void shake(float power, float time) {
+    shake_time = time;
+    shake_power = power;
+    shaking = true;
 }
 
 typedef struct
@@ -89,6 +98,8 @@ typedef struct
 
 int main() {
     srand(time(NULL));
+
+    bool play_again = false;
 
     #pragma region LOAD LIST
     FILE *list_file;
@@ -138,15 +149,16 @@ int main() {
     int attempt_count = -1;
     int selected_attempt_index = 0;
 
-    game_t search_results[5];
+    game_t search_results[100];
+    int max_search_results = 0;
     int selected_search_index = 0;
 
     attempts = calloc(attempt_count + 1, sizeof(game_t));
 
     game_t correct_game;
-    // int correct_index = (rand() % (100));
+    int correct_index = (rand() % (100));
     // correct_game = games[0];
-    correct_game = games[0];
+    correct_game = games[correct_index];
 
     printf("%s\n", correct_game.name);
     #pragma endregion 
@@ -226,13 +238,10 @@ int main() {
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
 
-    float shake_time = 0;
-    float shake_power = 0;
-
     char name_temp[100];
 
-    while (!WindowShouldClose()) {
-        camera.offset = Vector2Add(baseCameraOffset, shake(shake_power, &shake_time));
+    while (!WindowShouldClose() && !win) {
+        if (shaking) camera.offset = Vector2Add(baseCameraOffset, shake_offset());
 
         //Blur the image
         BeginTextureMode(blurred_object_rt);        
@@ -244,17 +253,14 @@ int main() {
 
         EndTextureMode();
 
-        int max_selection_index = 4;
-        for (int i = 0; i < 5; i++) if (strcmp(search_results[i].name, "") == 0) max_selection_index--;
-
         //Arrows
         if (IsKeyPressed(KEY_DOWN)) {
             selected_search_index++;
-            if (selected_search_index > max_selection_index) selected_search_index = 0;
+            if (selected_search_index > max_search_results) selected_search_index = 0;
         }
         if (IsKeyPressed(KEY_UP)) {
             selected_search_index--;
-            if (selected_search_index < 0) selected_search_index = max_selection_index;
+            if (selected_search_index < 0) selected_search_index = max_search_results;
         }
 
         if (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT)) {
@@ -292,7 +298,7 @@ int main() {
         //Search
         for (int l = 0; l < 5; l++) strcpy(search_results[l].name, "");
         if (user_input[0] != '\0') {
-            for (int l = 0, j = 0; l < 100 && j < 5; l++) {
+            for (int l = 0, j = 0; l < 100; l++) {
                 char temp_substr[strlen(user_input)+1];
                 for (int k = 0; k <= (int)strlen(user_input); k++) {
                     temp_substr[k] = games[l].name[k];
@@ -301,6 +307,8 @@ int main() {
 
                 if (strcasecmp(user_input, temp_substr) == 0)   {
                     search_results[j] = games[l];
+                    // printf("%s\n", search_results[j].name);
+                    max_search_results = j;
                     j++;
                 }
             }
@@ -314,14 +322,13 @@ int main() {
             attempts = realloc(attempts, (attempt_count + 1) * sizeof(game_t));
             attempts[attempt_count] = search_results[selected_search_index];
 
-            if (strcmp(search_results[selected_search_index].name, correct_game.name) != 0) {
-                shaking = true;
-                shake_time = 0.5;
-                shake_power = 1.5;
-            }
+            if (strcmp(search_results[selected_search_index].name, correct_game.name) != 0) shake(3, 0.4);
+            else win = true;
+
+            for (int i = 0; i < max_search_results; i++) strcpy(search_results[i].name, "");
 
             strcpy(user_input, " ");
-            for (int i = 0; i < 100; i++) if (strcmp(search_results[selected_search_index].name, games[i].name) == 0) strcpy(games[i].name, "");
+            for (int i = 0; i < 100; i++) if (strcmp(search_results[selected_search_index].name, games[i ].name) == 0) strcpy(games[i].name, "");
             input_index = 0;
 
             if (strlen(attempts[attempt_count].name) >= 10) {
@@ -342,7 +349,9 @@ int main() {
         ClearBackground((Color){30,30,30,255});
         DrawText(user_input, screen_width/2-MeasureText(user_input, 30)/2, 30/2, 30, RAYWHITE);
         for (int j = 0; j < 5; j++) {
-            DrawText(search_results[j].name, screen_width/2-MeasureText(search_results[j].name, 30)/2, 30*(2+1.5*j), 30, (selected_search_index == j ? BLUE : PINK));
+            DrawText(search_results[(max_search_results >= 5 && selected_search_index >= 5) ? (j + (selected_search_index-4)) : j].name, 
+                screen_width/2-MeasureText(search_results[(max_search_results >= 5 && selected_search_index >= 5) ? (j + (selected_search_index-4)) : j].name, 30)/2, 
+                30*(2+1.5*j), 30, (selected_search_index == ((max_search_results >= 5 && selected_search_index >= 5) ? (j + (selected_search_index-4)) : j) ? BLUE : PINK));
         }
 
         if (attempt_count != -1) DrawText(TextFormat("%d", selected_attempt_index + 1), screen_width - MeasureText(TextFormat("%d", selected_attempt_index + 1), 30) - 30, 15, 30, WHITE);
@@ -400,6 +409,7 @@ int main() {
             
             x_offset += MeasureText(selected_game.theme, 30) + 20;
 
+
             //GAMEMODE
             int gamemode_equality = check_equality(correct_game.gamemode, selected_game.gamemode);
             if (gamemode_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset, screen_height - 80, 30, GREEN);
@@ -453,8 +463,7 @@ int main() {
 
         //Hints
         if (hint_1) {
-            // Example: Draw the hint text instead of printing to console
-            DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 250, 20, YELLOW);
+            DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 500, 20, YELLOW);
         }
         if (hint_2) {
             Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
@@ -471,6 +480,26 @@ int main() {
         EndDrawing();
     }
 
+    InitWindow(400, 200, "YOU WIN!");
+
+    SetTargetFPS(60);
+    while (!WindowShouldClose() && win) {      
+        BeginDrawing();
+
+        ClearBackground(LIGHTGRAY);
+        DrawText("Você GANHOU!!!!!!", 200-MeasureText("Você GANHOU!!!!!!", 30)/2, 85, 30, BLACK);
+        DrawText("Aperte ENTER para jogar novamente!", 200-MeasureText("Aperte ENTER para jogar novamente!", 20)/2, 125, 20, BLACK);
+
+        if (IsKeyPressed(KEY_ENTER)) {
+            win = false;
+            play_again = true;
+        }
+
+        if (IsKeyPressed(KEY_ESCAPE)) exit(1);
+
+        EndDrawing();
+    }
+
     UnloadRenderTexture(blurred_object_rt);
     UnloadShader(blur_shader);
     UnloadTexture(arrow_texture);
@@ -481,5 +510,11 @@ int main() {
     UnloadImage(heart_image);
     UnloadTexture(cover_texture);
     free(attempts);
+
+    if (!win && play_again) {
+        CloseWindow();
+        main();
+    }
+
     return 0;
 }
