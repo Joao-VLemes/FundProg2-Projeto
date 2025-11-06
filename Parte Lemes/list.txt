@@ -28,8 +28,8 @@ Rocket League;2015;EUA;Esporte;Competitivo;Multi;PC/Console;
 The Sims 4;2014;EUA;Simulação;Vida real;Single;PC/Console;
 Animal Crossing;2020;Japão;Simulação;Vida cotidiana;Single/Multi;Console;
 Undertale;2015;EUA;RPG;Fantasia;Single;PC/Console;
-Cuphead;2017;Canadá;Plataforma;Ação;Single/Multi;PC/Console;
-Resident Evil 4;2023;Japão;Terror;Ação;Single;PC/Console;
+Cuphead;2017;Canadá;Plataforma;Ação;Single/Multi;PC/Console; PAREI AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+Resident Evil 4;2023;Japão;Terror;Ação;Single;PC/Console; PROXIMOOOOOOOOOOOOOOOO
 Monster Hunter Rise;2021;Japão;Ação/RPG;Fantasia;Single/Multi;PC/Console;
 Doom Eternal;2020;EUA;Tiro;Ação;Single;PC/Console;
 Sekiro;2019;Japão;Ação/Aventura;Fantasia;Single;PC/Console;
