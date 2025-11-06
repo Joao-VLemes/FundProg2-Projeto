@@ -1,14 +1,3 @@
-/**
- * @file hello.c
- * @author Muriel Godoi (muriel@utfpr.edu.br)
- * @brief Hello World in Raylib 5.5
- * @version 0.1
- * @date 2024-11-27
- * 
- * @copyright Copyright (c) 2024S
- * 
- */
-
 #include "raylib.h"
 #include "raymath.h"
 #include <stdio.h>
@@ -17,87 +6,85 @@
 #include <time.h>
 #include <ctype.h>
 
-
-/*
-- Sprites ao deixar o cursor em cima ou não
-- Escala variável
-*/
-
+// Enum for button identifiers
 typedef enum {
-    BOTAO_INICIAR,
-    BOTAO_COMO_JOGAR,
-    BOTAO_SAIR
-} Botoes;
+    BUTTON_START,
+    BUTTON_HOW_TO_PLAY,
+    BUTTON_EXIT
+} ButtonType;
 
+// Enum for game screens
 typedef enum {
-    TELA_INICIAL,
-    TELA_COMO_JOGAR,
-} Telas;
+    SCREEN_MAIN,
+    SCREEN_HOW_TO_PLAY,
+    SCREEN_GAMEPLAY
+} GameScreen;
 
+// Struct for a UI Button
 typedef struct {
     Texture2D sprite;
     Rectangle area;
-    Vector2 posicao;
-    float escalaX;
-    float escalaY;
+    Vector2 position;
+    float scale_x;
+    float scale_y;
 
-    Color cor;
-    Color corAtual;
-    Color hoverCor;
-    int hover;
-    int pressionado;
+    Color color;
+    Color current_color;
+    Color hover_color;
+    int is_hovered;
+    int is_pressed;
 
-    const char* texto;
-} Botao;
+    const char* text;
+} Button;
 
-void botaoPress(Botao* botao) {
-    botao->pressionado = 1;
-    botao->escalaX = 0.9f;
-    botao->escalaY = 0.9f;
+void press_button(Button* button) {
+    button->is_pressed = 1;
+    button->scale_x = 0.9f;
+    button->scale_y = 0.9f;
 }
 
-void botaoHover(Botao* botao) {
-    if (!botao->hover) {
-        botao->hover = 1;
-        botao->escalaX = Lerp(botao->escalaX, 1.1f, 0.2f);
-        botao->escalaY = Lerp(botao->escalaY, 1.1f, 0.2f);
-        botao->corAtual = botao->hoverCor;
+void hover_button(Button* button) {
+    if (!button->is_hovered) {
+        button->is_hovered = 1;
+        button->scale_x = Lerp(button->scale_x, 1.1f, 0.2f);
+        button->scale_y = Lerp(button->scale_y, 1.1f, 0.2f);
+        button->current_color = button->hover_color;
     }
 }
 
-void resetBotaoState(Botao* botao) {
-    botao->hover = 0;
-    botao->escalaX = Lerp(botao->escalaX, 1.0f, 0.2f);
-    botao->escalaY = Lerp(botao->escalaY, 1.0f, 0.2f);
-    botao->corAtual = botao->cor;
-    botao->pressionado = 0;
+void reset_button_state(Button* button) {
+    button->is_hovered = 0;
+    button->scale_x = Lerp(button->scale_x, 1.0f, 0.2f);
+    button->scale_y = Lerp(button->scale_y, 1.0f, 0.2f);
+    button->current_color = button->color;
+    button->is_pressed = 0;
 }
 
-void desenharBotao(Botao* botao) {
-    float _width = botao->area.width * botao->escalaX;
-    float _height = botao->area.height * botao->escalaY;
-    float _x = botao->area.x - (_width - botao->area.width) / 2.0f;
-    float _y = botao->area.y - (_height - botao->area.height) / 2.0f;
-    DrawRectangle(_x, _y, _width, _height, botao->corAtual);
+void draw_button(Button* button) {
+    float _width = button->area.width * button->scale_x;
+    float _height = button->area.height * button->scale_y;
+    float _x = button->area.x - (_width - button->area.width) / 2.0f;
+    float _y = button->area.y - (_height - button->area.height) / 2.0f;
+    DrawRectangle(_x, _y, _width, _height, button->current_color);
 
     float spacing = 2.0f;
-    Vector2 textSize = MeasureTextEx(GetFontDefault(), botao->texto, 20, spacing);
+    Vector2 textSize = MeasureTextEx(GetFontDefault(), button->text, 20, spacing);
     float textX = _x + (_width - textSize.x) * 0.5f;
     float textY = _y + (_height - textSize.y) * 0.5f;
-    DrawTextEx(GetFontDefault(), botao->texto, (Vector2){(int)textX, (int)textY}, 20, spacing, BLACK);
+    DrawTextEx(GetFontDefault(), button->text, (Vector2){(int)textX, (int)textY}, 20, spacing, BLACK);
 }
 
-bool checarBotao(Botao* botao)
+// Checks button interaction and returns true if clicked
+bool check_button_interaction(Button* button)
 {
     Vector2 mousePos = GetMousePosition();
 
-    if (CheckCollisionPointRec(mousePos, botao->area))
+    if (CheckCollisionPointRec(mousePos, button->area))
     {
-        botaoHover(botao);
+        hover_button(button);
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            botaoPress(botao);
-
+            press_button(button);
             return 1;
         }
     }
@@ -105,48 +92,66 @@ bool checarBotao(Botao* botao)
     return 0;
 }
 
-static Botao botoes[3] = {0};
-static Telas telaAtual = TELA_INICIAL;
-void inicializarBotoes() {
+// --- Global Static Variables ---
+static Music music = {0};
+static int music_loaded = 0;
+
+static float transition_offset = 0.0f;
+static Button buttons[3] = {0};
+static GameScreen current_screen = SCREEN_MAIN;
+static GameScreen previous_screen = SCREEN_MAIN;
+
+void initialize_buttons() {
     for (int i = 0; i < 3; i++) {
-        botoes[i].sprite = (Texture2D){0};
-        botoes[i].area = (Rectangle){
+        buttons[i].sprite = (Texture2D){0};
+        buttons[i].area = (Rectangle){
             120.0f,
             80 + i * 100.0f,
             180.0f,
             64.0f
         };
 
-        botoes[i].posicao = (Vector2){
-            botoes[i].area.x + botoes[i].area.width / 2.0f,
-            botoes[i].area.y + botoes[i].area.height / 2.0f
+        buttons[i].position = (Vector2){
+            buttons[i].area.x + buttons[i].area.width / 2.0f,
+            buttons[i].area.y + buttons[i].area.height / 2.0f
         };
 
-        botoes[i].escalaX = 1.0f;
-        botoes[i].escalaY = 1.0f;
-        botoes[i].cor = Fade(SKYBLUE, 0.95f);
-        botoes[i].hoverCor = Fade(LIGHTGRAY, 0.95f);
-        botoes[i].corAtual = botoes[i].cor;
-        botoes[i].hover = 0;
-        botoes[i].pressionado = 0;
+        buttons[i].scale_x = 1.0f;
+        buttons[i].scale_y = 1.0f;
+        buttons[i].color = Fade(SKYBLUE, 0.95f);
+        buttons[i].hover_color = Fade(LIGHTGRAY, 0.95f);
+        buttons[i].current_color = buttons[i].color;
+        buttons[i].is_hovered = 0;
+        buttons[i].is_pressed = 0;
     }
 
-    // Finaliza inicialização
-    botoes[BOTAO_INICIAR].texto = "Jogar";
-    botoes[BOTAO_COMO_JOGAR].texto = "Como jogar";
-    botoes[BOTAO_SAIR].texto = "Sair";
+    // Finalize initialization
+    buttons[BUTTON_START].text = "Play";
+    buttons[BUTTON_HOW_TO_PLAY].text = "How to Play";
+    buttons[BUTTON_EXIT].text = "Exit";
 }
-void atualizarBotoes() {
-    switch (telaAtual) {
-        case TELA_INICIAL: {
+
+// Manages screen logic and transitions
+void update_game_logic() {
+    switch (current_screen) {
+        case SCREEN_MAIN: {
             for (int i = 0; i < 3; i++) {
-                resetBotaoState(&botoes[i]);
-                if (checarBotao(&botoes[i])) {
-                    if (i == BOTAO_INICIAR) {
-                        // TODO: iniciar a lógica do jogo (trocar para tela de jogo quando existir)
-                    } else if (i == BOTAO_COMO_JOGAR) {
-                        telaAtual = TELA_COMO_JOGAR;
-                    } else if (i == BOTAO_SAIR) {
+                reset_button_state(&buttons[i]);
+                if (check_button_interaction(&buttons[i])) {
+                    transition_offset = 0;
+                    previous_screen = current_screen;
+
+                    if (i == BUTTON_START) {
+                        current_screen = SCREEN_GAMEPLAY;
+                        StopMusicStream(music);
+                        //UnloadMusicStream(music);
+                        music_loaded = 0;
+                    } else if (i == BUTTON_HOW_TO_PLAY) {
+                        current_screen = SCREEN_HOW_TO_PLAY;
+                        StopMusicStream(music);
+                        //UnloadMusicStream(music);
+                        music_loaded = 0;
+                    } else if (i == BUTTON_EXIT) {
                         CloseWindow();
                         exit(1);
                     }
@@ -154,44 +159,133 @@ void atualizarBotoes() {
             }
         } break;
 
-        case TELA_COMO_JOGAR: {
-            // voltar para a tela inicial com ESC, ENTER ou clique
+        case SCREEN_HOW_TO_PLAY: {
             if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                telaAtual = TELA_INICIAL;
-            }
-        } break;
-    }
-}
-void desenharTelas() {
-    switch (telaAtual) {
-         case TELA_INICIAL: {
-            for (int i = 0; i < 3; i++) {
-                desenharBotao(botoes + i);
+                transition_offset = 0;
+                previous_screen = current_screen;
+                current_screen = SCREEN_MAIN;
+
+                
+                if (!music_loaded) {
+                    // Adjust the path to the audio file (.ogg/.wav) in your resources folder
+                    music = LoadMusicStream("musicas/Project_1.ogg");
+                    PlayMusicStream(music);
+                    music_loaded = 1;
+                }
             }
         } break;
 
-        case TELA_COMO_JOGAR: {
-            DrawText("adivnha jgo e dai acerta e dai ve e dai tentar\n denovo e dai ate acertar :)", 100, 100, 20, WHITE);
+        case SCREEN_GAMEPLAY: {
+            
+            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                transition_offset = 0;
+                previous_screen = current_screen;
+                current_screen = SCREEN_MAIN;
+                
+                if (!music_loaded) {
+                    // Adjust the path to the audio file (.ogg/.wav) in your resources folder
+                    music = LoadMusicStream("musicas/Project_1.ogg");
+                    PlayMusicStream(music);
+                    music_loaded = 1;
+                }
+            }
+
         } break;
     }
 }
+
+void draw_screen(GameScreen screen) {
+    switch (screen) {
+         case SCREEN_MAIN: {
+            for (int i = 0; i < 3; i++) {
+                draw_button(buttons + i);
+            }
+        } break;
+
+        case SCREEN_HOW_TO_PLAY: {
+            DrawText("guess the game and then get it right and then see and then try\n again and then until you get it right :)", 100, 100, 20, WHITE);
+        } break;
+
+        case SCREEN_GAMEPLAY: {
+            DrawText("GAMEPLAY by lemes", 100, 100, 20, WHITE);
+        } break;
+    }
+}
+
 
 int main(void)
 {
-    const int larguraTela = 800;
-    const int alturaTela = 450;
+    const int screen_width = 800;
+    const int screen_height = 450;
 
-    InitWindow(larguraTela, alturaTela, "Hello World Raylib 5.5");
+    
+    InitWindow(screen_width, screen_height, "Hello World Raylib 5.5");
+    InitAudioDevice();
     SetTargetFPS(60);
 
-    inicializarBotoes();
+    initialize_buttons();
+
+    if (!music_loaded) {
+        // Adjust the path to the audio file (.ogg/.wav) in your resources folder
+        music = LoadMusicStream("musicas/Project_1.ogg");
+        PlayMusicStream(music);
+        music_loaded = 1;
+    }
+
     while (!WindowShouldClose()) {
-        atualizarBotoes();
+        UpdateMusicStream(music);
+
+        update_game_logic();
 
         BeginDrawing();
         ClearBackground(BLACK);
         
-        desenharTelas();
+        Camera2D camera = { 0 };
+        camera.zoom = 1.0f; // Normal zoom
+
+        
+        if (current_screen != previous_screen)
+        {
+            if (music_loaded) {
+                
+                music_loaded = 0;
+            }
+            
+            transition_offset = Lerp(transition_offset, screen_width, 0.1f);
+            
+            // --- 1. DRAW TRANSITION (Two screens) ---
+            
+            // A. Draw OLD screen (sliding left)
+            camera.offset = (Vector2){ -transition_offset, 0 };
+            
+            BeginMode2D(camera);
+            
+            draw_screen(previous_screen);
+                
+            EndMode2D(); 
+            
+            
+            // B. Draw NEW screen (sliding in from right)
+            camera.offset = (Vector2){ screen_width - transition_offset, 0 };
+
+            BeginMode2D(camera); 
+            
+            draw_screen(current_screen);
+                
+            EndMode2D();
+        }
+        else
+        {
+            // --- 2. DRAW NORMAL (One screen) ---
+            
+            camera.offset = (Vector2){ 0, 0 };
+            
+            BeginMode2D(camera); 
+            
+            draw_screen(current_screen);
+                
+            EndMode2D();
+        }
 
         EndDrawing();
     }
