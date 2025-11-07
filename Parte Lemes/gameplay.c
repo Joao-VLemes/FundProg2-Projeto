@@ -156,9 +156,9 @@ int main() {
     attempts = calloc(attempt_count + 1, sizeof(game_t));
 
     game_t correct_game;
-    int correct_index = (rand() % (100));
-    // correct_game = games[0];
-    correct_game = games[correct_index];
+    // int correct_index = (rand() % (100));
+    correct_game = games[0];
+    // correct_game = games[correct_index];
 
     printf("%s\n", correct_game.name);
     #pragma endregion 
@@ -325,11 +325,12 @@ int main() {
             if (strcmp(search_results[selected_search_index].name, correct_game.name) != 0) shake(3, 0.4);
             else win = true;
 
-            for (int i = 0; i < max_search_results; i++) strcpy(search_results[i].name, "");
-
             strcpy(user_input, " ");
             for (int i = 0; i < 100; i++) if (strcmp(search_results[selected_search_index].name, games[i ].name) == 0) strcpy(games[i].name, "");
             input_index = 0;
+
+            for (int i = 0; i < max_search_results; i++) strcpy(search_results[i].name, "");
+            
 
             if (strlen(attempts[attempt_count].name) >= 10) {
                 for (int i = (int)strlen(attempts[attempt_count].name)/3; i < (int)strlen(attempts[attempt_count].name); i++) {
