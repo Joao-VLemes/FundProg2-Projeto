@@ -352,7 +352,7 @@ int main() {
             }
         }
 
-        camera.offset.y += (int)(GetMouseWheelMove()*30);
+        if (!moving_up) camera.offset.y += (int)(GetMouseWheelMove()*35);
         if (camera.offset.y >= screen_height/2-2) {
             camera.offset.y = screen_height/2;
             moving_up = false;
