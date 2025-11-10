@@ -163,9 +163,9 @@ int main() {
     attempts = calloc(attempt_count + 1, sizeof(game_t));
 
     game_t correct_game;
-    // int correct_index = (rand() % (100));
-    correct_game = games[0];
-    // correct_game = games[correct_index];
+    int correct_index = (rand() % (100));
+    // correct_game = games[0];
+    correct_game = games[correct_index];
 
     printf("%s\n", correct_game.name);
     #pragma endregion 
@@ -220,10 +220,12 @@ int main() {
 
         //Load the cover art
     char image_path[50];
-    sprintf(image_path, "capas/capa_%s.jpg", game_name_formatted); 
+    sprintf(image_path, "capas/capa %s.png", correct_game.name); 
 
     Image image = LoadImage(image_path);
     Texture2D cover_texture = LoadTextureFromImage(image);
+    cover_texture.height = 334;
+    cover_texture.width = 236;
     UnloadImage(image);
 
     //Shader for blurring
@@ -362,7 +364,7 @@ int main() {
         y_gap = screen_height/2 - (attempt_count)*185;
         if (attempt_count == -1) y_gap = screen_height/2;
         if (camera.offset.y <= y_gap) camera.offset.y = y_gap;
-        printf("%d|%d\n", (int)camera.offset.y, y_gap);
+        // printf("%d|%d\n", (int)camera.offset.y, y_gap);
 
         //Draw on screen
         BeginDrawing();
@@ -439,6 +441,7 @@ int main() {
             DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 500, 20, YELLOW);
         }
         if (hint_2) {
+            //236x334
             Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
             Vector2 destPos = { screen_width - cover_texture.width - 20.0f, screen_height - cover_texture.height - 20.0f};
             DrawTextureRec(blurred_object_rt.texture, sourceRect, destPos, WHITE);
