@@ -163,15 +163,14 @@ int main() {
     attempts = calloc(attempt_count + 1, sizeof(game_t));
 
     game_t correct_game;
-    int correct_index = (rand() % (100));
-    // correct_game = games[0];
-    correct_game = games[correct_index];
+    // int correct_index = (rand() % (100));
+    correct_game = games[10];
+    // correct_game = games[correct_index];
 
     printf("%s\n", correct_game.name);
     #pragma endregion 
 
     int input_index = 0;
-    int capslock_on = 0;
 
     bool hint_1 = false;
     bool hint_2 = false;

@@ -94,7 +94,6 @@
 "Cor volta quando você cura."
 "O rádio fala sozinho."
 "Cada porta, uma vida."
-"Bem-vindo à Casa Mais Antiga."
 "Corvos também têm contas a acertar."
 "O tempo gira, a luta recomeça."
 "Robôzinho, mundo gigante, diversão infinita."
