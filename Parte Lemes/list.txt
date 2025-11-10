@@ -94,7 +94,6 @@ Spiritfarer;2020;Canada;Simulacao;Drama;Single;PC/Console;
 Gris;2018;Espanha;Plataforma;Arte;Single;PC/Console/Celular;
 Oxenfree;2016;EUA;Narrativo;Terror;Single;PC/Console/Celular;
 Edith Finch;2017;EUA;Narrativo;Drama;Single;PC/Console;
-Control;2019;Finlandia;Acao;Sobrenatural;Single;PC/Console;
 Deaths Door;2021;EUA;Acao/Aventura;Fantasia;Single;PC/Console;
 Loop Hero;2021;Russia;RPG;Roguelike;Single;PC/Console;
 Astro Bot;2024;Japao;Plataforma;Alegria;Single;Console;
