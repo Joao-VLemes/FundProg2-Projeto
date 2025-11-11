@@ -58,7 +58,7 @@ Journey;2012;EUA;Exploracao;Arte;Single/Multi;PC/Console;
 Disco Elysium;2021;Estonia;RPG;Narrativo;Single;PC/Console;
 Factorio;2020;Republica Tcheca;Estrategia;Industria;Single/Multi;PC;
 RimWorld;2018;Canada;Simulacao;Estrategia;Single;PC;
-Star Wars Jedi Survivors;2023;EUA;Acao/Aventura;Ficcao cientifica;Single;PC/Console;
+Star Wars Jedi Survivor;2023;EUA;Acao/Aventura;Ficcao cientifica;Single;PC/Console;
 Binding of Isaac;2021;EUA;Roguelike;Acao;Single;PC/Console;
 Ori and the Will of the Wisps;2020;EUA;Plataforma;Aventura;Single;PC/Console;
 Risk of Rain 2;2020;EUA;Roguelike;Acao;Single/Multi;PC/Console;
