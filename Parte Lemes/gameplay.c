@@ -6,11 +6,43 @@
 #include <time.h>
 #include <ctype.h>
 
+typedef struct
+{
+    char name[50];
+    int year;
+    char origin[50];
+    char genre[3][50];
+    char theme[50];
+    char gamemode[3][50];
+    char platform[3][50];
+    char phrase[200];
+    Texture2D flag_texture;
+    Texture2D logo_texture;
+} GAME;
+
 static bool shaking = false;
 static bool moving_up = false;
 static float shake_time = 0;
 static float shake_power = 0;
 bool win = false;
+
+static int screen_width = 1280;
+static int screen_height = 720;
+
+static Texture2D heart_texture;
+static Texture2D arrow_texture;
+static Texture2D cover_texture;
+
+static GAME games[100];
+static GAME correct_game;
+static GAME search_results[100];
+static GAME *attempts;
+
+static int attempt_count = -1;
+static int selected_attempt_index = 0;
+
+static int max_search_results = 0;
+static int selected_search_index = 0;
 
 // Splits the string in str_array[0] by "/" and stores parts in str_array[1] and str_array[2]
 void split_string(char str_array[3][50]) {
@@ -84,35 +116,8 @@ void shake(float power, float time) {
     shaking = true;
 }
 
-typedef struct
-{
-    char name[50];
-    int year;
-    char origin[50];
-    char genre[3][50];
-    char theme[50];
-    char gamemode[3][50];
-    char platform[3][50];
-    char phrase[200];
-    Texture2D flag_texture;
-} game_t;
-
-
-
-int main() {
-    srand(time(NULL));
-
-    // bool play_again = false;
-
-    #pragma region WINDOW
-    int screen_width = 1280;
-    int screen_height = 720;
-    InitWindow(screen_width, screen_height, "GAMEPLAY");
-    #pragma endregion
-
-    #pragma region LOAD LIST
+void load_list() {
     FILE *list_file;
-    game_t games[100];
 
     list_file = fopen("list.txt", "r");
     if (list_file == NULL){
@@ -128,12 +133,16 @@ int main() {
         Image flag_image = LoadImage(TextFormat("sources/flags/%s.png", games[i].origin));
         games[i].flag_texture = LoadTextureFromImage(flag_image);
         UnloadImage(flag_image);
+
+        Image logo_image = LoadImage(TextFormat("logos/logo %s.png", games[i].name));
+        games[i].logo_texture = LoadTextureFromImage(logo_image);
+        UnloadImage(logo_image);
+
+        if (games[i].logo_texture.height != 0) games[i].logo_texture.width = 32* games[i].logo_texture.width/games[i].logo_texture.height;
+        games[i].logo_texture.height = 32;
     }
 
     fclose(list_file);
-    #pragma endregion
-
-    #pragma region LOAD PHRASES
 
     FILE *phrases_file;
 
@@ -146,29 +155,43 @@ int main() {
     for (int i = 0; fscanf(phrases_file, " %199[^\n]\n", games[i].phrase) == 1; i++) {
         // printf("%s: %s\n", games[i].name, games[i].phrase);
     }
+}
 
-    #pragma endregion
+void load_texture() {
+    Image arrow_image = LoadImage("sources/flecha.png");
+    arrow_texture = LoadTextureFromImage(arrow_image);
+    UnloadImage(arrow_image);
 
-    #pragma region GAMES
-    char user_input[50] = "";
+    //Health heart
+    Image heart_image = LoadImage("sources/coracao.png");
+    heart_texture = LoadTextureFromImage(heart_image);
+    UnloadImage(heart_image);
 
-    game_t *attempts;
-    int attempt_count = -1;
-    int selected_attempt_index = 0;
+    //Game
+    char image_path[50];
+    sprintf(image_path, "capas/capa %s.png", correct_game.name); 
 
-    game_t search_results[100];
-    int max_search_results = 0;
-    int selected_search_index = 0;
+    Image image = LoadImage(image_path);
+    cover_texture = LoadTextureFromImage(image);
+    cover_texture.height = 334;
+    cover_texture.width = 236;
+    UnloadImage(image);
+}
 
-    attempts = calloc(attempt_count + 1, sizeof(game_t));
+void load_games() {
+    
 
-    game_t correct_game;
+    attempts = calloc(attempt_count + 1, sizeof(GAME));
+
     int correct_index = (rand() % (100));
     // correct_game = games[0];
     correct_game = games[correct_index];
+}
 
-    printf("%s\n", correct_game.name);
-    #pragma endregion 
+void run_gameplay() {
+    char user_input[50] = "";
+
+
 
     int input_index = 0;
     int capslock_on = 0;
@@ -177,56 +200,6 @@ int main() {
     bool hint_2 = false;
     bool hint_3 = false;
 
-    //Arrow to indicate higher or lower year
-    Image arrow_image = LoadImage("sources/flecha.png");
-    Texture2D arrow_texture = LoadTextureFromImage(arrow_image);
-
-    //Health heart
-    Image heart_image = LoadImage("sources/coracao.png");
-    Texture2D heart_texture = LoadTextureFromImage(heart_image);
-
-    //Cover Art
-        //Cover art filename
-    char game_name_formatted[40];
-
-    // for (int i = 0; i < 100; i++) {
-    //     strcpy(game_name_formatted, games[i].name);
-
-    //     for (int i = 0; i < strlen(game_name_formatted); i++) {
-    //         if (game_name_formatted[i] == ' ' || game_name_formatted[i] == ',' || game_name_formatted[i] == '-' || game_name_formatted[i] == ':'){ 
-    //             if (i < 5) {
-    //                 game_name_formatted[i] = '_';
-    //             } else {
-    //                 game_name_formatted[i] = '\0';
-    //                 break;
-    //             }
-    //         }
-    //     }
-
-    //     printf("%s\n", game_name_formatted);
-    // }
-
-    strcpy(game_name_formatted, correct_game.name);
-    for (int i = 0; i < (int)strlen(game_name_formatted); i++) {
-        if (game_name_formatted[i] == ' ' || game_name_formatted[i] == ',' || game_name_formatted[i] == '-' || game_name_formatted[i] == ':'){ 
-            if (i < 5) {
-                game_name_formatted[i] = '_';
-            } else {
-                game_name_formatted[i] = '\0';
-                break;
-            }
-        }
-    }
-
-        //Load the cover art
-    char image_path[50];
-    sprintf(image_path, "capas/capa %s.png", correct_game.name); 
-
-    Image image = LoadImage(image_path);
-    Texture2D cover_texture = LoadTextureFromImage(image);
-    cover_texture.height = 334;
-    cover_texture.width = 236;
-    UnloadImage(image);
 
     //Shader for blurring
     Shader blur_shader = LoadShader(0, "capas/blur.fs");
@@ -329,7 +302,7 @@ int main() {
             attempt_count++;
             selected_attempt_index = attempt_count;
             // printf("%d\n", attempt_count);
-            attempts = realloc(attempts, (attempt_count + 1) * sizeof(game_t));
+            attempts = realloc(attempts, (attempt_count + 1) * sizeof(GAME));
             attempts[attempt_count] = search_results[selected_search_index];
 
             moving_up = true;
@@ -374,9 +347,11 @@ int main() {
         BeginMode2D(camera);
         if (attempt_count != -1 ) { // Added attempt_count check
             for (int i = 0; i < attempt_count+1; i++){
-                game_t selected_game = attempts[attempt_count-i];
+                GAME selected_game = attempts[attempt_count-i];
                 
-                DrawText(selected_game.name, 20, screen_height - 180 +  i*185, 30, PINK);
+                DrawText(selected_game.name, 30 + selected_game.logo_texture.width, screen_height - 180 +  i*185, 30, PINK);
+                DrawTextureEx(selected_game.logo_texture, (Vector2){20, screen_height - 180 +  i*185}, 0, 1.1, GRAY);
+                DrawTexture(selected_game.logo_texture, 20, screen_height - 180 +  i*185, WHITE); 
                 int x_offset = 20;
 
                 //YEAR
@@ -502,38 +477,30 @@ int main() {
         EndDrawing();
     }
 
-    InitWindow(400, 200, "YOU WIN!");
-
-    SetTargetFPS(60);
-    while (!WindowShouldClose() && win) {      
-        BeginDrawing();
-
-        ClearBackground(LIGHTGRAY);
-        DrawText("Você GANHOU!!!!!!", 200-MeasureText("Você GANHOU!!!!!!", 30)/2, 85, 30, BLACK);
-        DrawText("Aperte ENTER para jogar novamente!", 200-MeasureText("Aperte ENTER para jogar novamente!", 20)/2, 125, 20, BLACK);
-
-        if (IsKeyPressed(KEY_ENTER)) {
-            win = false;
-            // play_again = true;
-        }
-
-        if (IsKeyPressed(KEY_ESCAPE)) exit(1);
-
-        EndDrawing();
-    }
-
     UnloadRenderTexture(blurred_object_rt);
     UnloadShader(blur_shader);
     UnloadTexture(arrow_texture);
-    UnloadImage(arrow_image);
     UnloadTexture(heart_texture);
-    UnloadImage(heart_image);
     UnloadTexture(cover_texture);
     free(attempts);
 
     for (int i = 0; i < 100; i++) {
         UnloadTexture(games[i].flag_texture);
+        UnloadTexture(games[i].logo_texture);
     }
 
+}
+
+int main() {
+    srand(time(NULL));
+
+    InitWindow(screen_width, screen_height, "GAMEPLAY");
+
+    load_list();
+    load_games();
+    load_texture();
+
+    run_gameplay();
+   
     return 0;
 }
