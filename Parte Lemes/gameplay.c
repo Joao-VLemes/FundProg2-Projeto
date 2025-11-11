@@ -194,7 +194,6 @@ void run_gameplay() {
 
 
     int input_index = 0;
-    int capslock_on = 0;
 
     bool hint_1 = false;
     bool hint_2 = false;
