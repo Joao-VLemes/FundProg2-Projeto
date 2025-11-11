@@ -7,21 +7,22 @@
 #include <ctype.h>
 #include "gameplay.h" // Inclui nosso header do jogo
 
-// Enum for button identifiers
+// Enum para identificadores de botão
 typedef enum {
     BUTTON_START,
     BUTTON_HOW_TO_PLAY,
     BUTTON_EXIT
 } ButtonType;
 
-// Enum for game screens
+// Enum para as telas do jogo
 typedef enum {
     SCREEN_MAIN,
     SCREEN_HOW_TO_PLAY,
-    SCREEN_GAMEPLAY
+    SCREEN_GAMEPLAY,
+    SCREEN_VICTORY // Tela de vitória integrada
 } GameScreen;
 
-// Struct for a UI Button
+// Struct para um botão de UI
 typedef struct {
     Texture2D sprite;
     Rectangle area;
@@ -38,16 +39,14 @@ typedef struct {
     const char* text;
 } Button;
 
-// --- Funções de Botão (Sem alterações) ---
+// --- Funções Auxiliares de Botão ---
 void press_button(Button* button) {
-// ... (código da função press_button sem alterações) ...
     button->is_pressed = 1;
     button->scale_x = 0.9f;
     button->scale_y = 0.9f;
 }
 
 void hover_button(Button* button) {
-// ... (código da função hover_button sem alterações) ...
     if (!button->is_hovered) {
         button->is_hovered = 1;
         button->scale_x = Lerp(button->scale_x, 1.1f, 0.2f);
@@ -57,7 +56,6 @@ void hover_button(Button* button) {
 }
 
 void reset_button_state(Button* button) {
-// ... (código da função reset_button_state sem alterações) ...
     button->is_hovered = 0;
     button->scale_x = Lerp(button->scale_x, 1.0f, 0.2f);
     button->scale_y = Lerp(button->scale_y, 1.0f, 0.2f);
@@ -66,7 +64,6 @@ void reset_button_state(Button* button) {
 }
 
 void draw_button(Button* button) {
-// ... (código da função draw_button sem alterações) ...
     float _width = button->area.width * button->scale_x;
     float _height = button->area.height * button->scale_y;
     float _x = button->area.x - (_width - button->area.width) / 2.0f;
@@ -80,10 +77,11 @@ void draw_button(Button* button) {
     DrawTextEx(GetFontDefault(), button->text, (Vector2){(int)textX, (int)textY}, 20, spacing, BLACK);
 }
 
+// Verifica a interação com o botão e retorna true se clicado
 bool check_button_interaction(Button* button)
 {
-// ... (código da função check_button_interaction sem alterações) ...
     Vector2 mousePos = GetMousePosition();
+
     if (CheckCollisionPointRec(mousePos, button->area))
     {
         hover_button(button);
@@ -93,6 +91,7 @@ bool check_button_interaction(Button* button)
             return 1;
         }
     }
+
     return 0;
 }
 
@@ -104,21 +103,23 @@ static float transition_offset = 0.0f;
 static Button buttons[3] = {0};
 static GameScreen current_screen = SCREEN_MAIN;
 static GameScreen previous_screen = SCREEN_MAIN;
+// Não precisamos mais da flag 'screen_to_unload'
 
 void initialize_buttons() {
-// ... (código da função initialize_buttons sem alterações, mas usando screen_width/height) ...
     for (int i = 0; i < 3; i++) {
         buttons[i].sprite = (Texture2D){0};
         buttons[i].area = (Rectangle){
-            (screen_width / 2) - 90.0f,
+            (screen_width / 2) - 90.0f, // Centralizado
             (screen_height / 2) - 100.0f + i * 100.0f,
             180.0f,
             64.0f
         };
+
         buttons[i].position = (Vector2){
             buttons[i].area.x + buttons[i].area.width / 2.0f,
             buttons[i].area.y + buttons[i].area.height / 2.0f
         };
+
         buttons[i].scale_x = 1.0f;
         buttons[i].scale_y = 1.0f;
         buttons[i].color = Fade(SKYBLUE, 0.95f);
@@ -127,12 +128,13 @@ void initialize_buttons() {
         buttons[i].is_hovered = 0;
         buttons[i].is_pressed = 0;
     }
+
     buttons[BUTTON_START].text = "Play";
     buttons[BUTTON_HOW_TO_PLAY].text = "How to Play";
     buttons[BUTTON_EXIT].text = "Exit";
 }
 
-// *** LÓGICA DE UPDATE PRINCIPAL (MODIFICADA) ***
+// Atualiza a lógica do jogo (máquina de estados)
 void update_game_logic() {
     
     // Atualiza a música independentemente da tela
@@ -149,6 +151,9 @@ void update_game_logic() {
                         previous_screen = current_screen;
 
                         if (i == BUTTON_START) {
+                            // Limpa os assets da rodada anterior ANTES de carregar os novos
+                            unload_gameplay_round(); 
+                            
                             // Prepara todos os assets para a próxima rodada
                             load_games(); 
                             load_texture();
@@ -159,7 +164,6 @@ void update_game_logic() {
                             music_loaded = 0;
                         } else if (i == BUTTON_HOW_TO_PLAY) {
                             current_screen = SCREEN_HOW_TO_PLAY;
-                            // (Opcional) Poderia parar a música aqui também
                         } else if (i == BUTTON_EXIT) {
                             CloseWindow(); // O loop principal no main() vai parar
                         }
@@ -176,17 +180,23 @@ void update_game_logic() {
             } break;
 
             case SCREEN_GAMEPLAY: {
-                // Agora, em vez de um loop 'sequestrado',
-                // nós apenas atualizamos um frame do jogo.
+                // Atualiza um frame do jogo
                 update_gameplay();
 
-                // Verificamos se o jogo terminou (por vitória ou ESC)
+                // Verifica se o jogo terminou (por vitória ou ESC)
                 if (is_gameplay_finished()) {
-                    unload_gameplay_round(); // Limpa os assets da rodada
+                    // Apenas sinaliza a mudança de tela.
+                    // O 'unload' acontecerá na próxima vez que 'Play' for clicado.
                     
                     transition_offset = 0;
                     previous_screen = current_screen;
-                    current_screen = SCREEN_MAIN;
+                    
+                    // Decide para qual tela ir
+                    if (win) {
+                        current_screen = SCREEN_VICTORY;
+                    } else {
+                        current_screen = SCREEN_MAIN;
+                    }
                     
                     // Recarrega e toca a música do menu
                     if (!music_loaded) {
@@ -194,6 +204,15 @@ void update_game_logic() {
                         PlayMusicStream(music);
                         music_loaded = 1;
                     }
+                }
+            } break;
+
+            // Update da tela de vitória
+            case SCREEN_VICTORY: {
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    transition_offset = 0;
+                    previous_screen = current_screen;
+                    current_screen = SCREEN_MAIN;
                 }
             } break;
         }
@@ -207,29 +226,62 @@ void update_game_logic() {
     }
 }
 
-// *** LÓGICA DE DRAW PRINCIPAL (MODIFICADA) ***
-// Esta função agora só desenha as telas simples.
-// O gameplay é desenhado diretamente no loop main.
-void draw_screen(GameScreen screen) {
-    // A tela é limpa no loop 'main'
+//
+// *** FUNÇÃO DE DESENHO MODIFICADA ***
+//
+// Agora recebe a câmera de transição para aplicar o offset
+void draw_screen(GameScreen screen, Camera2D transition_cam) {
     
     switch (screen) {
          case SCREEN_MAIN: {
-            DrawText("GUESS THE GAME", screen_width / 2 - MeasureText("GUESS THE GAME", 40) / 2, 100, 40, WHITE);
-            for (int i = 0; i < 3; i++) {
-                draw_button(buttons + i);
-            }
+            BeginMode2D(transition_cam); // Inicia modo 2D com a câmera de transição
+                DrawText("GUESS THE GAME", screen_width / 2 - MeasureText("GUESS THE GAME", 40) / 2, 100, 40, WHITE);
+                for (int i = 0; i < 3; i++) {
+                    draw_button(buttons + i);
+                }
+            EndMode2D(); // Termina modo 2D
         } break;
 
         case SCREEN_HOW_TO_PLAY: {
-            DrawText("Adivinhe o jogo!", 100, 100, 20, WHITE);
-            DrawText("Use as setas para navegar na busca e Enter para tentar.", 100, 130, 20, WHITE);
-            DrawText("Aperte ESC para voltar ao menu a qualquer momento.", 100, 160, 20, WHITE);
+            BeginMode2D(transition_cam);
+                DrawText("Adivinhe o jogo!", 100, 100, 20, WHITE);
+                DrawText("Use as setas para navegar na busca e Enter para tentar.", 100, 130, 20, WHITE);
+                DrawText("Aperte ESC para voltar ao menu a qualquer momento.", 100, 160, 20, WHITE);
+            EndMode2D();
         } break;
 
         case SCREEN_GAMEPLAY: {
-            // Esta função não faz mais nada aqui.
-            // O gameplay é desenhado no loop principal.
+            // Desenho do Gameplay é dividido em duas partes (Mundo e UI)
+            
+            // 1. DESENHA O MUNDO (com câmera do jogo + câmera de transição)
+            Camera2D world_cam = get_gameplay_camera();
+            world_cam.offset = Vector2Add(world_cam.offset, transition_cam.offset); 
+            
+            BeginMode2D(world_cam);
+                draw_gameplay_world();
+            EndMode2D();
+            
+            // 2. DESENHA A UI (apenas com câmera de transição)
+            BeginMode2D(transition_cam);
+                draw_gameplay_ui();
+            EndMode2D();
+        } break;
+        
+        // Desenho da tela de vitória
+        case SCREEN_VICTORY: {
+            BeginMode2D(transition_cam);
+                const char* msgVitoria = "VOCE VENCEU!";
+                int tamTexto = MeasureText(msgVitoria, 80);
+                int posX = (screen_width - tamTexto) / 2;
+                int posY = screen_height / 2 - 40;
+                DrawText(msgVitoria, posX, posY, 80, GREEN);
+
+                const char* msgRestart = "Pressione ENTER para voltar ao Menu";
+                int tamRestart = MeasureText(msgRestart, 20);
+                posX = (screen_width - tamRestart) / 2;
+                posY = screen_height / 2 + 60;
+                DrawText(msgRestart, posX, posY, 20, DARKGRAY);
+            EndMode2D();
         } break;
     }
 }
@@ -237,15 +289,14 @@ void draw_screen(GameScreen screen) {
 
 int main(void)
 {
-    // srand(time(NULL)) precisa estar aqui, já que este é o main()
+    // srand(time(NULL)) precisa estar aqui
     srand(time(NULL));
 
     // Inicializa a janela com o tamanho vindo do gameplay.h
     InitWindow(screen_width, screen_height, "Guess The Game");
     InitAudioDevice();
 
-    // CORREÇÃO: Desativa a tecla ESC para fechar o jogo
-    // Agora só o botão 'X' da janela fecha, ou o CloseWindow()
+    // Desativa a tecla ESC para fechar o jogo
     SetExitKey(0); 
 
     // Carrega a lista de jogos UMA VEZ
@@ -255,7 +306,7 @@ int main(void)
 
     initialize_buttons();
 
-    // Loop principal (Agora 100% no controle)
+    // Loop principal (O Maestro)
     while (!WindowShouldClose()) {
         
         // 1. ATUALIZAR
@@ -263,7 +314,7 @@ int main(void)
 
         // 2. DESENHAR
         BeginDrawing();
-        ClearBackground((Color){30,30,30,255});
+        ClearBackground((Color){30,30,30,255}); // Cor de fundo do jogo
         
         // Câmeras base para a transição
         Camera2D transition_cam_prev = { 0 };
@@ -275,72 +326,39 @@ int main(void)
         
         if (current_screen != previous_screen)
         {
-            // --- 1. ATUALIZA A TRANSIÇÃO ---
-            transition_offset = Lerp(transition_offset, screen_width, 0.1f);
+            // --- 1. ATUALIZA A TRANSIÇÃO (Lerp Puro) ---
+            transition_offset = Lerp(transition_offset, (float)screen_width, 0.1f);
             
-            if ((screen_width - transition_offset) < 1.0f) {
-                transition_offset = screen_width;
-                previous_screen = current_screen; // Trava a transição
+            // Se a transição terminou (ou está muito perto),
+            // reseta o offset e trava a tela em 'previous_screen = current_screen'
+            // Isso permite que o 'update_game_logic' volte a rodar
+            if (fabs((float)screen_width - transition_offset) < 0.1f) // Mais preciso que 1.0f
+            {
+                transition_offset = 0.0f; // Reseta para a próxima transição
+                previous_screen = current_screen; // Trava na nova tela
             }
             
             // Define os offsets de transição
             transition_cam_prev.offset = (Vector2){ -transition_offset, 0 };
             transition_cam_curr.offset = (Vector2){ screen_width - transition_offset, 0 };
         }
+        // Se não estiver em transição, os offsets permanecem (0, 0)
+        // o que faz 'transition_cam_curr' ser a câmera padrão.
 
         // --- 2. DESENHA A TELA ANTERIOR (se estiver em transição) ---
-        if (transition_offset < screen_width) 
+        if (previous_screen != current_screen) 
         {
-            if (previous_screen == SCREEN_GAMEPLAY) {
-                // Pega a câmera do jogo (com shake/scroll)
-                Camera2D world_cam = get_gameplay_camera();
-                // Adiciona o offset da transição
-                world_cam.offset = Vector2Add(world_cam.offset, transition_cam_prev.offset); 
-                
-                // Desenha o MUNDO com a câmera combinada
-                BeginMode2D(world_cam);
-                    draw_gameplay_world();
-                EndMode2D();
-                
-                // Desenha a UI apenas com a câmera de transição
-                BeginMode2D(transition_cam_prev);
-                    draw_gameplay_ui();
-                EndMode2D();
-            } else {
-                // Desenha o menu/how-to-play
-                BeginMode2D(transition_cam_prev);
-                    draw_screen(previous_screen);
-                EndMode2D();
-            }
+            draw_screen(previous_screen, transition_cam_prev);
         }
 
         // --- 3. DESENHA A TELA ATUAL ---
-        if (current_screen == SCREEN_GAMEPLAY) {
-            // Pega a câmera do jogo (com shake/scroll)
-            Camera2D world_cam = get_gameplay_camera();
-            // Adiciona o offset da transição
-            world_cam.offset = Vector2Add(world_cam.offset, transition_cam_curr.offset);
-            
-            // Desenha o MUNDO com a câmera combinada
-            BeginMode2D(world_cam);
-                draw_gameplay_world();
-            EndMode2D();
-            
-            // Desenha a UI apenas com a câmera de transição
-            BeginMode2D(transition_cam_curr);
-                draw_gameplay_ui();
-            EndMode2D();
-        } else {
-            // Desenha o menu/how-to-play
-            BeginMode2D(transition_cam_curr);
-                draw_screen(current_screen);
-            EndMode2D();
-        }
+        draw_screen(current_screen, transition_cam_curr);
 
         EndDrawing();
     }
 
     // --- LIMPEZA FINAL ---
+    unload_gameplay_round(); // Limpa a última rodada
     unload_global_assets(); // Limpa as texturas da lista de jogos
     UnloadMusicStream(music);
     CloseAudioDevice();
