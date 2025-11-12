@@ -138,7 +138,7 @@ void initialize_buttons() {
 void update_game_logic() {
     
     // Atualiza a música independentemente da tela
-    UpdateMusicStream(music);
+    //UpdateMusicStream(music);
     
     // A lógica de update só roda se NÃO estivermos em transição
     if (current_screen == previous_screen) {

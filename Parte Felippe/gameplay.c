@@ -6,6 +6,9 @@
 #include <time.h>
 #include <ctype.h>
 
+#define GAME_AMOUNT 100
+
+
 // --- Variáveis Globais (Públicas) ---
 int screen_width = 1280;
 int screen_height = 720;
@@ -599,7 +602,11 @@ void unload_gameplay_round(void) {
 void unload_global_assets(void) {
     // Limpa os assets da load_list
     for (int i = 0; i < 100; i++) {
-        if (games[i].flag_texture.id > 0) UnloadTexture(games[i].flag_texture);
-        if (games[i].logo_texture.id > 0) UnloadTexture(games[i].logo_texture);
+        if (games[i].flag_texture.id > 0) {
+            UnloadTexture(games[i].flag_texture);
+        }
+        if (games[i].logo_texture.id > 0) {
+            UnloadTexture(games[i].logo_texture);
+        }
     }
 }
