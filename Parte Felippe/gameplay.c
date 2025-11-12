@@ -202,7 +202,7 @@ void load_texture() {
     heart_texture = LoadTextureFromImage(heart_image);
     UnloadImage(heart_image);
 
-    char image_path[50];
+    char image_path[100];
     sprintf(image_path, "capas/capa %s.png", correct_game.name); 
 
     Image image = LoadImage(image_path);
