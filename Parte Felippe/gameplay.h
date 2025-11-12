@@ -1,9 +1,7 @@
 #ifndef GAMEPLAY_H
 #define GAMEPLAY_H
 
-#include "raylib.h" 
-
-// --- Estrutura de Dados Compartilhada ---
+#include "raylib.h"
 
 typedef struct
 {
@@ -17,11 +15,10 @@ typedef struct
     char phrase[200];
     Texture2D flag_texture;
     Texture2D logo_texture;
-} GAME;
+} Game;
 
 
 // --- Variáveis Globais Públicas ---
-
 extern int screen_width;
 extern int screen_height;
 extern bool win;
@@ -35,6 +32,7 @@ void load_games(void);       // Chamada toda vez que um novo jogo começa
 void load_texture(void);     // Chamada toda vez que um novo jogo começa
 
 // Funções de loop (Controladas pelo menu)
+void update_list();
 void init_gameplay(void);    // Prepara os assets da rodada (shader, etc)
 void update_gameplay(void);  // Atualiza um frame da lógica do jogo
 bool is_gameplay_finished(void); // Verifica se o jogo acabou (win ou ESC)
