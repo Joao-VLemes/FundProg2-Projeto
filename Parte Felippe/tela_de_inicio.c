@@ -5,24 +5,22 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
-#include "gameplay.h" // Inclui nosso header do jogo
+#include "gameplay.h"
 
-// Enum para identificadores de botão
 typedef enum {
     BUTTON_START,
     BUTTON_HOW_TO_PLAY,
     BUTTON_EXIT
 } ButtonType;
 
-// Enum para as telas do jogo
 typedef enum {
     SCREEN_MAIN,
     SCREEN_HOW_TO_PLAY,
     SCREEN_GAMEPLAY,
-    SCREEN_VICTORY // Tela de vitória integrada
+    SCREEN_VICTORY
 } GameScreen;
 
-// Struct para um botão de UI
+
 typedef struct {
     Texture2D sprite;
     Rectangle area;
@@ -39,7 +37,6 @@ typedef struct {
     const char* text;
 } Button;
 
-// --- Funções Auxiliares de Botão ---
 void press_button(Button* button) {
     button->is_pressed = 1;
     button->scale_x = 0.9f;
@@ -78,20 +75,15 @@ void draw_button(Button* button) {
 }
 
 // Verifica a interação com o botão e retorna true se clicado
-bool check_button_interaction(Button* button)
-{
+bool check_button_interaction(Button* button) {
     Vector2 mousePos = GetMousePosition();
-
-    if (CheckCollisionPointRec(mousePos, button->area))
-    {
+    if (CheckCollisionPointRec(mousePos, button->area)) {
         hover_button(button);
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             press_button(button);
             return 1;
         }
     }
-
     return 0;
 }
 
@@ -109,7 +101,7 @@ void initialize_buttons() {
     for (int i = 0; i < 3; i++) {
         buttons[i].sprite = (Texture2D){0};
         buttons[i].area = (Rectangle){
-            (screen_width / 2) - 90.0f, // Centralizado
+            (screen_width / 2) - 90.0f,
             (screen_height / 2) - 100.0f + i * 100.0f,
             180.0f,
             64.0f
@@ -151,10 +143,13 @@ void update_game_logic() {
                         previous_screen = current_screen;
 
                         if (i == BUTTON_START) {
+                            update_list();
+                            
                             // Limpa os assets da rodada anterior ANTES de carregar os novos
                             unload_gameplay_round(); 
                             
                             // Prepara todos os assets para a próxima rodada
+                            
                             load_games(); 
                             load_texture();
                             init_gameplay(); // Prepara o estado do gameplay (shader, camera)
@@ -287,7 +282,7 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
 }
 
 
-int main(void)
+int main()
 {
     // srand(time(NULL)) precisa estar aqui
     srand(time(NULL));
