@@ -6,25 +6,16 @@
 #include <time.h>
 #include <ctype.h>
 
-// --- Variáveis Globais (Públicas) ---
 int screen_width = 1280;
 int screen_height = 720;
-bool win = false; // 'win' precisa ser público para o menu checar
+bool win = false;
 
-// --- Variáveis Estáticas Globais (Privadas deste arquivo) ---
-static bool shaking = false;
-static bool moving_up = false;
-static float shake_time = 0;
-static float shake_power = 0;
-
-static Texture2D heart_texture;
-static Texture2D arrow_texture;
-static Texture2D cover_texture;
-
-static GAME games[100];
-static GAME correct_game;
-static GAME search_results[100];
-static GAME *attempts = NULL; // Importante inicializar com NULL
+static int game_properties_amount = 7;
+static int game_amount = 100;
+static Game games[100];
+static Game search_results[100];
+static Game correct_game;
+static Game *attempts = NULL;
 
 static int attempt_count = -1;
 static int selected_attempt_index = 0;
@@ -44,7 +35,16 @@ static bool game_finished = false;
 static Shader blur_shader = {0};
 static RenderTexture2D blurred_object_rt = {0};
 static Camera2D game_camera = {0};
-static Vector2 baseCameraOffset = {0};
+static Vector2 base_camera_offset = {0};
+
+static bool shaking = false;
+static bool moving_up = false;
+static float shake_time = 0;
+static float shake_power = 0;
+
+static Texture2D heart_texture;
+static Texture2D arrow_texture;
+static Texture2D cover_texture;
 
 
 // --- Funções de "Helper" (Privadas) ---
@@ -129,19 +129,32 @@ static void shake(float power, float time) {
 
 // --- Funções Públicas (Definidas no .h) ---
 
+void update_list() {
+    //games = (Game*) malloc(sizeof(Game) * game_amount);
+}
+
+
 void load_list() {
     FILE *list_file;
-
     list_file = fopen("list.txt", "r");
     if (list_file == NULL){
-        perror("LIST NOT LOADED\n");
+        perror("Error reading list!\n");
         exit(1);
     }
-    for (int i = 0; i < 100; i++) { // Lê até 100 jogos
-        if (fscanf(list_file, "%49[^;];%d;%49[^;];%49[^;];%49[^;];%49[^;];%49[^;];\n", 
-            games[i].name, &games[i].year, games[i].origin, games[i].genre[0], 
-            games[i].theme, games[i].gamemode[0], games[i].platform[0]) != 7) {
-            break; // Para se a linha não for lida corretamente ou o arquivo acabar
+
+    for (int i = 0; i < game_amount; i++) {
+        int _game = fscanf(list_file, "%49[^;];%d;%49[^;];%49[^;];%49[^;];%49[^;];%49[^;];\n", 
+            games[i].name,
+            &games[i].year,
+            games[i].origin,
+            games[i].genre[0], 
+            games[i].theme,
+            games[i].gamemode[0],
+            games[i].platform[0]
+        );
+
+        if (_game != game_properties_amount) {
+            break;
         }
         
         // Salva os originais antes de 'split_string' modificar
@@ -214,8 +227,8 @@ void load_texture() {
 
 void load_games() {
     // 'attempts' é limpo em unload_gameplay_round
-    int correct_index = (rand() % (100));
-    correct_game = games[correct_index];
+    int correct_game_index = (rand() % (100));
+    correct_game = games[correct_game_index];
     
     // Copia os dados que 'split_string' vai modificar
     // para que a 'correct_game' tenha os dados divididos
@@ -225,6 +238,7 @@ void load_games() {
 }
 
 void init_gameplay() {
+    
     // Reseta o estado do jogo para uma nova rodada
     win = false;
     game_finished = false;
@@ -233,6 +247,9 @@ void init_gameplay() {
     max_search_results = -1; // Resetado para vazio
     selected_search_index = 0;
     
+
+
+
     strcpy(user_input, "");
     input_index = 0;
     
@@ -247,7 +264,7 @@ void init_gameplay() {
 
     // Aloca memória inicial para 'attempts'
     // (Será 'realloc'ada depois)
-    attempts = calloc(1, sizeof(GAME)); 
+    attempts = calloc(1, sizeof(Game)); 
 
     //Shader para o blur
     blur_shader = LoadShader(0, "capas/blur.fs");
@@ -257,8 +274,8 @@ void init_gameplay() {
     SetShaderValue(blur_shader, view_size_loc, texture_size, SHADER_UNIFORM_VEC2);
 
     // Câmera
-    baseCameraOffset = (Vector2){ screen_width/2, screen_height/2.0f };
-    game_camera.offset = baseCameraOffset;
+    base_camera_offset = (Vector2){ screen_width/2, screen_height/2.0f };
+    game_camera.offset = base_camera_offset;
     game_camera.target = (Vector2){screen_width/2, screen_height/2};
     game_camera.rotation = 0.0f;
     game_camera.zoom = 1.0f;
@@ -277,10 +294,10 @@ void update_gameplay(void) {
     }
 
     // --- LÓGICA DE UPDATE ---
-    if (shaking) game_camera.offset = Vector2Add((Vector2){baseCameraOffset.x, game_camera.offset.y}, shake_offset());
+    if (shaking) game_camera.offset = Vector2Add((Vector2){base_camera_offset.x, game_camera.offset.y}, shake_offset());
 
     //if (moving_up) {
-    //    game_camera.offset.y = Lerp(game_camera.offset.y, baseCameraOffset.y, 0.01);
+    //    game_camera.offset.y = Lerp(game_camera.offset.y, base_camera_offset.y, 0.01);
     //}
 
     // Processa o blur (isso é lógica, não desenho final)
@@ -380,7 +397,7 @@ void update_gameplay(void) {
         selected_attempt_index = attempt_count;
         
         // Realoca o array de tentativas
-        GAME* new_attempts = realloc(attempts, (attempt_count + 1) * sizeof(GAME));
+        Game* new_attempts = realloc(attempts, (attempt_count + 1) * sizeof(Game));
         if (new_attempts == NULL) {
             perror("Failed to realloc attempts");
             exit(1); // Falha crítica
@@ -438,7 +455,7 @@ Camera2D get_gameplay_camera(void) {
 void draw_gameplay_world(void) {
     if (attempt_count != -1 ) {
         for (int i = 0; i < attempt_count+1; i++){
-            GAME selected_game = attempts[attempt_count-i];
+            Game selected_game = attempts[attempt_count-i];
             
             // --- INÍCIO DA CORREÇÃO DE DESENHO (NOME) ---
             // Cria uma cópia temporária do nome para desenhar
@@ -597,8 +614,7 @@ void unload_gameplay_round(void) {
 }
 
 void unload_global_assets(void) {
-    // Limpa os assets da load_list
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < game_amount; i++) {
         if (games[i].flag_texture.id > 0) UnloadTexture(games[i].flag_texture);
         if (games[i].logo_texture.id > 0) UnloadTexture(games[i].logo_texture);
     }
