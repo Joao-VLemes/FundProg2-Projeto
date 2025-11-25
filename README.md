@@ -1,5 +1,7 @@
 ![LOGO](https://github.com/Joao-VLemes/FundProg2-Projeto/blob/main/Jogo/sources/logojogo.png)
 
+
+
 Projeto final da disciplina de **Fundamentos de Programação 2**.
 Basicamente é um jogo estilo "Wordle" ou "Loldle", mas com jogos de videogame. Foi feito em **C** usando a biblioteca **Raylib**.
 
