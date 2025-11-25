@@ -23,6 +23,7 @@ typedef enum {
 
 typedef struct {
     Texture2D sprite;
+    Rectangle sourceRec; // <--- NOVO: Controla qual parte da imagem desenhar
     Rectangle area;
     Vector2 position;
     float scale_x;
@@ -37,10 +38,18 @@ typedef struct {
     const char* text;
 } Button;
 
+// Variável global para a textura do botão
+static Texture2D tex_button_atlas = {0};
+static Texture2D tex_game_logo = {0};
+
 void press_button(Button* button) {
-    button->is_pressed = 1;
-    button->scale_x = 0.9f;
-    button->scale_y = 0.9f;
+    
+    button->scale_x = Lerp(button->scale_x, 0.9f, 0.2f);
+    button->scale_y = Lerp(button->scale_y, 0.9f, 0.2f);
+
+    // <--- LÓGICA DO ATLAS HORIZONTAL: Frame 1 (Pressionado)
+    // Move o recorte X para a metade direita da imagem
+    button->sourceRec.x = button->sprite.width / 2.0f;
 }
 
 void hover_button(Button* button) {
@@ -58,6 +67,10 @@ void reset_button_state(Button* button) {
     button->scale_y = Lerp(button->scale_y, 1.0f, 0.2f);
     button->current_color = button->color;
     button->is_pressed = 0;
+
+    // <--- LÓGICA DO ATLAS HORIZONTAL: Frame 0 (Solto)
+    // Move o recorte X para o início (esquerda)
+    button->sourceRec.x = 0.0f;
 }
 
 void draw_button(Button* button) {
@@ -65,7 +78,14 @@ void draw_button(Button* button) {
     float _height = button->area.height * button->scale_y;
     float _x = button->area.x - (_width - button->area.width) / 2.0f;
     float _y = button->area.y - (_height - button->area.height) / 2.0f;
-    DrawRectangle(_x, _y, _width, _height, button->current_color);
+
+    // <--- DESENHO COM TEXTURA (Substitui DrawRectangle)
+    // sourceRec: O recorte do atlas (frame atual)
+    // destRec: Onde desenhar na tela (com escala)
+    Rectangle destRec = { _x, _y, _width, _height };
+    
+    // O 'origin' é (0,0) pois já calculamos o centro com _x e _y
+    DrawTexturePro(button->sprite, button->sourceRec, destRec, (Vector2){0,0}, 0.0f, button->current_color);
 
     float spacing = 2.0f;
     Vector2 textSize = MeasureTextEx(GetFontDefault(), button->text, 20, spacing);
@@ -77,11 +97,21 @@ void draw_button(Button* button) {
 // Verifica a interação com o botão e retorna true se clicado
 bool check_button_interaction(Button* button) {
     Vector2 mousePos = GetMousePosition();
+    
     if (CheckCollisionPointRec(mousePos, button->area)) {
-        hover_button(button);
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            press_button(button);
-            return 1;
+        hover_button(button); // Aplica cor de hover e escala inicial
+
+        // --- CORREÇÃO AQUI ---
+        // Use IsMouseButtonDown (Enquanto segura) em vez de Pressed.
+        // Isso mantém a sprite trocada e o tamanho reduzido enquanto o dedo está no mouse.
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+            press_button(button); 
+        }
+
+        // Sua lógica de confirmar a ação ao SOLTAR o botão
+        if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            // button->is_pressed = 1; // Opcional, já que vamos mudar de tela logo em seguida
+            return true;
         }
     }
     return 0;
@@ -91,6 +121,11 @@ bool check_button_interaction(Button* button) {
 static Music music = {0};
 static int music_loaded = 0;
 
+static float logo_x = 0;
+static float logo_y = 0;
+static float logo_time = 0;
+static float logo_angle = 0;
+
 static float transition_offset = 0.0f;
 static Button buttons[3] = {0};
 static GameScreen current_screen = SCREEN_MAIN;
@@ -98,8 +133,19 @@ static GameScreen previous_screen = SCREEN_MAIN;
 // Não precisamos mais da flag 'screen_to_unload'
 
 void initialize_buttons() {
+// <--- CARREGAR O ATLAS DO BOTAO
+    if (tex_button_atlas.id == 0) {
+        tex_button_atlas = LoadTexture("sources/botao.png");
+    }
+
     for (int i = 0; i < 3; i++) {
-        buttons[i].sprite = (Texture2D){0};
+        buttons[i].sprite = tex_button_atlas;
+        
+        // <--- CONFIGURA RECORTE INICIAL (Horizontal)
+        // Largura = Metade da textura total
+        // Altura = Altura total da textura
+        buttons[i].sourceRec = (Rectangle){ 0.0f, 0.0f, (float)tex_button_atlas.width / 2.0f, (float)tex_button_atlas.height };
+
         buttons[i].area = (Rectangle){
             (screen_width / 2) - 90.0f,
             (screen_height / 2) - 100.0f + i * 100.0f,
@@ -114,8 +160,8 @@ void initialize_buttons() {
 
         buttons[i].scale_x = 1.0f;
         buttons[i].scale_y = 1.0f;
-        buttons[i].color = Fade(SKYBLUE, 0.95f);
-        buttons[i].hover_color = Fade(LIGHTGRAY, 0.95f);
+        buttons[i].color = LIGHTGRAY;
+        buttons[i].hover_color = WHITE;
         buttons[i].current_color = buttons[i].color;
         buttons[i].is_hovered = 0;
         buttons[i].is_pressed = 0;
@@ -128,7 +174,12 @@ void initialize_buttons() {
 
 // Atualiza a lógica do jogo (máquina de estados)
 void update_game_logic() {
-    
+    logo_time += 0.05f;
+    logo_x = cos(logo_time/2)*15;
+    logo_y = sin(logo_time)*10;
+    logo_angle = cos(logo_time/2)*2.5;
+
+
     // Atualiza a música independentemente da tela
     //UpdateMusicStream(music);
     
@@ -136,6 +187,8 @@ void update_game_logic() {
     if (current_screen == previous_screen) {
         switch (current_screen) {
             case SCREEN_MAIN: {
+                
+
                 for (int i = 0; i < 3; i++) {
                     reset_button_state(&buttons[i]);
                     if (check_button_interaction(&buttons[i])) {
@@ -228,7 +281,18 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
     switch (screen) {
          case SCREEN_MAIN: {
             BeginMode2D(transition_cam); // Inicia modo 2D com a câmera de transição
-                DrawText("GUESS THE GAME", screen_width / 2 - MeasureText("GUESS THE GAME", 40) / 2, 100, 40, WHITE);
+                //DrawText("GUESS THE GAME", screen_width / 2 - MeasureText("GUESS THE GAME", 40) / 2, 100, 40, WHITE);
+
+                {
+                    float logoW = (float)tex_game_logo.width;
+                    float logoH = (float)tex_game_logo.height;
+                    float posX = screen_width/2.0f + logo_x;
+                    float posY = 100.0f + logo_y;
+                    Rectangle src = { 0.0f, 0.0f, logoW, logoH };
+                    Rectangle dest = { posX, posY, logoW, logoH };
+                    Vector2 origin = { logoW/2.0f, logoH/2.0f }; // center of the texture
+                    DrawTexturePro(tex_game_logo, src, dest, origin, logo_angle, WHITE);
+                }
                 for (int i = 0; i < 3; i++) {
                     draw_button(buttons + i);
                 }
@@ -302,8 +366,16 @@ int main()
 
     initialize_buttons();
 
+    if (tex_game_logo.id == 0) {
+        tex_game_logo = LoadTexture("sources/logojogo.png");
+    }
+
+    
+
     // Loop principal (O Maestro)
     while (!WindowShouldClose()) {
+        
+
         
         // 1. ATUALIZAR
         update_game_logic();
@@ -354,6 +426,7 @@ int main()
     }
 
     // --- LIMPEZA FINAL ---
+    UnloadTexture(tex_button_atlas);
     unload_gameplay_round(); // Limpa a última rodada
     unload_global_assets(); // Limpa as texturas da lista de jogos
     UnloadMusicStream(music);
