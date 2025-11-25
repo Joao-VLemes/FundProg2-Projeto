@@ -22,6 +22,7 @@ typedef struct
 extern int screen_width;
 extern int screen_height;
 extern bool win;
+extern bool lose;
 
 
 // --- Funções Públicas ---

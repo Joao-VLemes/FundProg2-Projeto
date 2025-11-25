@@ -8,6 +8,10 @@ Alunos:
 - Felippe Henrique Teixeira Pedroso
 - Bryan Esteves Santana
 
+Rodando o jogo:
+- Abra o terminal na pasta "Jogo"
+- Utilize o arquivo Makefile para compilar ou rodar o jogo
+
 Funcionamento:
 - O jogo inicia em um terminal de gerenciamento das estruturas (jogos)
 - Nele o usuário pode excluir, adicionar, pesquisar, alterar e listar os jogos
