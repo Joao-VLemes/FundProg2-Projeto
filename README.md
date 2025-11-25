@@ -31,7 +31,7 @@ O objetivo é descobrir qual é o jogo secreto.
 
 - 🟩 Verde: Acertou essa característica (Ex: é da mesma empresa).
 
-- 🟨 Amarelo: É quase isso (Ex: O jogo está na plataforma certa, mas tem outras também).
+- 🟨 Amarelo: Parcial (Ex: O jogo está na plataforma certa, mas tem outras também).
 
 - 🟥 Vermelho: Errado.
 
