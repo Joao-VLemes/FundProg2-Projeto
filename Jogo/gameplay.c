@@ -11,6 +11,7 @@
 int screen_width = 1280;
 int screen_height = 720;
 bool win = false;
+bool lose = false;
 
 static int game_properties_amount = 7;
 static int game_amount = 0; // MODIFICADO: Agora é dinâmico, começa em 0
@@ -155,6 +156,8 @@ static void terminal_add_game() {
     // Abre os arquivos em modo "append" (a)
     FILE *list_file = fopen("list.csv", "a");
     FILE *phrases_file = fopen("frases.csv", "a");
+    FILE *capa_file = fopen(TextFormat("capas/capa %s.png", name), "wb");
+    FILE *logo_file = fopen(TextFormat("logos/logo %s.png", name), "w");
 
     if (list_file == NULL || phrases_file == NULL) {
         perror("Erro ao abrir arquivos para escrita");
@@ -171,6 +174,8 @@ static void terminal_add_game() {
 
     fclose(list_file);
     fclose(phrases_file);
+    fclose(capa_file);
+    fclose(logo_file);
 
     printf("Jogo '%s' adicionado com sucesso!\n", name);
 }
@@ -487,6 +492,7 @@ void load_list() {
         strcpy(games[i].platform[0], original_platform);
 
         Image flag_image = LoadImage(TextFormat("sources/flags/%s.png", games[i].origin));
+        if (flag_image.data == NULL) flag_image = LoadImage("sources/flags/flag.png");
         games[i].flag_texture = LoadTextureFromImage(flag_image);
         UnloadImage(flag_image);
 
@@ -549,6 +555,7 @@ void load_games() {
 
 void init_gameplay() {
     win = false;
+    lose = false;
     game_finished = false;
     attempt_count = -1;
     selected_attempt_index = 0;
@@ -587,7 +594,7 @@ void update_gameplay(void) {
         game_finished = true;
         return;
     }
-    if (win) {
+    if (win || lose) {
         game_finished = true;
         return;
     }
@@ -739,6 +746,7 @@ void draw_gameplay_world(void) {
             int x_offset = 20;
 
             //YEAR
+            DrawText("YEAR", x_offset, screen_height - 110 + i*185, 15, GRAY);
             if (selected_game.year == correct_game.year) DrawText(TextFormat("%d",selected_game.year), 20, screen_height - 80 + i*185, 30, GREEN);
             else {
                 DrawText(TextFormat("%d",selected_game.year), x_offset, screen_height - 80 + i*185, 30, RED);
@@ -747,17 +755,20 @@ void draw_gameplay_world(void) {
             x_offset += MeasureText(TextFormat("%d",selected_game.year), 30) + 33;
 
             //ORIGIN
+            DrawText("ORIGIN", x_offset, screen_height - 110 + i*185, 15, GRAY);
             DrawTexturePro(selected_game.flag_texture, (Rectangle){0, 0, (float)selected_game.flag_texture.width, (float)selected_game.flag_texture.height}, (Rectangle){x_offset, screen_height - 80 + i*185, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2}, (Vector2){0,0}, 0, WHITE);
             DrawRectangleLinesEx((Rectangle){x_offset,  screen_height - 80 + i*185, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2 }, 2.5, (strcmp(selected_game.origin, correct_game.origin) == 0) ? GREEN : RED);
             x_offset += selected_game.flag_texture.width*2 + 20;
 
             //GENRE
+            DrawText("GENRE", x_offset, screen_height - 110 + i*185, 15, GRAY);
             int genre_equality = check_equality(correct_game.genre, selected_game.genre);
             if (genre_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  screen_height - 80 + i*185, 30, GREEN);
             else DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  screen_height - 80 + i*185, 30, (genre_equality == 0) ? RED : YELLOW);
             x_offset += MeasureText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), 30) + 20;
 
             //THEME
+            DrawText("THEME", x_offset, screen_height - 110 + i*185, 15, GRAY);
             char theme_to_draw[50];
             strcpy(theme_to_draw, selected_game.theme);
             if (strlen(theme_to_draw) != strcspn(theme_to_draw, " ")) {
@@ -768,6 +779,7 @@ void draw_gameplay_world(void) {
 
 
             //GAMEMODE
+            DrawText("GAMEMODE", x_offset, screen_height - 110 + i*185, 15, GRAY);
             int gamemode_equality = check_equality(correct_game.gamemode, selected_game.gamemode);
             if (gamemode_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  screen_height - 80 + i*185, 30, GREEN);
             else DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  screen_height - 80 + i*185, 30, (gamemode_equality == 0) ? RED : YELLOW);
@@ -778,6 +790,7 @@ void draw_gameplay_world(void) {
             int platform_count = 0;
             for (int k = 0; k < 3; k++) if (strlen(selected_game.platform[k]) > 0) platform_count++;
             
+            DrawText("PLATAFORM", x_offset, screen_height - 110 - (platform_count > 1 ? 15 * (platform_count-1) : 0) + i*185, 15, GRAY);
             if (platform_equality == 1) DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset,  screen_height - 80 + i*185 - (platform_count > 1 ? 15 * (platform_count-1) : 0), 30, GREEN);
             else DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset,  screen_height - 80 + i*185 - (platform_count > 1 ? 15 * (platform_count-1) : 0), 30, (platform_equality == 0) ? RED : YELLOW);
             x_offset += MeasureText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), 30) + 10;
@@ -832,15 +845,17 @@ void draw_gameplay_ui(void) {
 
     for (int i = 0; i < (int)ceil((double)lives / 2); i++) {
         int sprite = 0;
-        Color color = WHITE;
+        int hint_sprite = 0;
         if (i == lives / 2 && lives % 2 != 0) sprite = 1;
-        if (i == 15 || i == 7 || i == 3 ) color = (Color){240,255,0,255};
-        DrawTexturePro(heart_texture, (Rectangle){8.0f * sprite, 8.0f * sprite, 8, 8}, (Rectangle){24.0f * i, 0, 32, 32}, (Vector2){0,0}, 0, color);
+        if (i == 7 || i == 3 || i == 0 ) hint_sprite = 2;
+        sprite += hint_sprite;
+        DrawTexturePro(heart_texture, (Rectangle){16.0f * sprite, 16.0f * sprite, 16, 16}, (Rectangle){4 + 34.0f * i, 4, 32, 32}, (Vector2){0,0}, 0, WHITE);
     }
 
     if (lives <= 15) hint_1 = true;
     if (lives <= 7) hint_2 = true;
-    if (lives <= 3) hint_3 = true;
+    if (lives <= 1) hint_3 = true;
+    if (lives <= 0) lose = true;
 }
 
 bool is_gameplay_finished(void) {

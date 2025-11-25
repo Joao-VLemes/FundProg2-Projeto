@@ -17,6 +17,7 @@ typedef enum {
     SCREEN_MAIN,
     SCREEN_HOW_TO_PLAY,
     SCREEN_GAMEPLAY,
+    SCREEN_LOSE,
     SCREEN_VICTORY
 } GameScreen;
 
@@ -187,7 +188,9 @@ void update_game_logic() {
                     // Decide para qual tela ir
                     if (win) {
                         current_screen = SCREEN_VICTORY;
-                    } else {
+                    } else if (lose) {
+                        current_screen = SCREEN_LOSE;
+                    } else{
                         current_screen = SCREEN_MAIN;
                     }
                     
@@ -202,6 +205,14 @@ void update_game_logic() {
 
             // Update da tela de vitória
             case SCREEN_VICTORY: {
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    transition_offset = 0;
+                    previous_screen = current_screen;
+                    current_screen = SCREEN_MAIN;
+                }
+            } break;
+
+            case SCREEN_LOSE: {
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     transition_offset = 0;
                     previous_screen = current_screen;
@@ -237,9 +248,28 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
 
         case SCREEN_HOW_TO_PLAY: {
             BeginMode2D(transition_cam);
+            // Você começa digitando o nome de qualquer Campeão do LoL.
+
+            // Após cada palpite, o jogo fornece dicas sobre o Campeão correto, comparando as características da sua tentativa (por exemplo: Gênero, Posições, Espécie, Região, etc.) com as do Campeão alvo.
+            
+            // Indicadores de Dica:
+            
+            // Verde: A característica está correta.
+            
+            // Amarelo: A característica está parcialmente correta (ex: uma das posições está correta, mas não a principal, ou é uma das posições possíveis).
+            
+            // Vermelho: A característica está incorreta.
+            
+            // Setas: Indicam se o número da Característica correta (ex: ano de lançamento, distância do ataque básico) é maior (↑) ou menor (↓) do que o seu palpite.
                 DrawText("Adivinhe o jogo!", 100, 100, 20, WHITE);
-                DrawText("Use as setas para navegar na busca e Enter para tentar.", 100, 130, 20, WHITE);
-                DrawText("Aperte ESC para voltar ao menu a qualquer momento.", 100, 160, 20, WHITE);
+                DrawText("Você começa digitando o nome de qualquer jogo.", 100, 130, 20, WHITE);
+                DrawText("Após cada palpite, o jogo fornece dicas sobre o jogo correto, ", 100, 160, 20, WHITE);
+                DrawText("comparando as características da sua tentativa com as do jogo certo.", 100, 190, 20, WHITE);
+                DrawText("Indicadores de Dica:", 100, 240, 20, WHITE);
+                DrawText("  A característica está correta.", 100, 270, 20, GREEN);
+                DrawText("  A característica está parcialmente correta.", 100, 300, 20, YELLOW);
+                DrawText("  A característica está incorreta.", 100, 330, 20, RED);
+                DrawText("  Setas: Indicam se o número da Característica correta é maior ou menor do que o seu palpite.", 100, 360, 20, GRAY);
             EndMode2D();
         } break;
 
@@ -268,6 +298,22 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
                 int posX = (screen_width - tamTexto) / 2;
                 int posY = screen_height / 2 - 40;
                 DrawText(msgVitoria, posX, posY, 80, GREEN);
+
+                const char* msgRestart = "Pressione ENTER para voltar ao Menu";
+                int tamRestart = MeasureText(msgRestart, 20);
+                posX = (screen_width - tamRestart) / 2;
+                posY = screen_height / 2 + 60;
+                DrawText(msgRestart, posX, posY, 20, DARKGRAY);
+            EndMode2D();
+        } break;
+
+        case SCREEN_LOSE: {
+            BeginMode2D(transition_cam);
+                const char* msgVitoria = "VOCE PERDEU!";
+                int tamTexto = MeasureText(msgVitoria, 80);
+                int posX = (screen_width - tamTexto) / 2;
+                int posY = screen_height / 2 - 40;
+                DrawText(msgVitoria, posX, posY, 80, RED);
 
                 const char* msgRestart = "Pressione ENTER para voltar ao Menu";
                 int tamRestart = MeasureText(msgRestart, 20);
