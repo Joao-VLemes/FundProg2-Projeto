@@ -988,11 +988,9 @@ void draw_gameplay_world(void) {
     if (hint_2) {
         Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
         Vector2 destPos = { screen_width - cover_texture.width - 20.0f, 20};
-        Vector2 destPos = { screen_width - cover_texture.width - 20.0f, 20.0f};
         DrawTextureRec(blurred_object_rt.texture, sourceRect, destPos, WHITE);
     }
     if (hint_3) {
-        DrawTexture(cover_texture, screen_width - cover_texture.width - 20, 20, WHITE);
         DrawTexture(cover_texture, screen_width - cover_texture.width - 20, 20, WHITE);
     }
 }
