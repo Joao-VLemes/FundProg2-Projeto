@@ -250,8 +250,21 @@ void switch_music_track(Music* requested_track) {
     }
 }
 
+// Função auxiliar para pegar o volume base de cada música
+float get_track_multiplier(Music* track) {
+    if (track == NULL) return 0.0f;
+    if (track == &music_win)  return 0.5f;
+    if (track == &music_lose) return 0.8f;
+    if (track == &music_main) return 1.0f;
+
+    return 1.0f;
+}
+
 // Atualiza o volume frame a frame para criar o efeito suave de transição
 void update_music_system() {
+    float track_mult = get_track_multiplier(current_music);
+    float target_volume = master_volume * track_mult;
+
     if (music_state == MUSIC_FADING_OUT) {
         current_volume -= audio_fade_speed;
         
@@ -259,7 +272,7 @@ void update_music_system() {
             current_volume = 0.0f;
             if (current_music != NULL) StopMusicStream(*current_music);
             
-            // Troca os ponteiros das músicas
+            // Troca a música
             current_music = next_music;
             next_music = NULL;
             
@@ -273,10 +286,14 @@ void update_music_system() {
     }
     else if (music_state == MUSIC_FADING_IN) {
         current_volume += audio_fade_speed;
-        
-        if (current_volume >= master_volume) {
-            current_volume = master_volume;
+
+        if (current_volume >= target_volume) {
+            current_volume = target_volume;
             music_state = MUSIC_PLAYING;
+        }
+    } else if (music_state == MUSIC_PLAYING) {
+        if (current_volume != target_volume) {
+            current_volume = target_volume; 
         }
     }
 
