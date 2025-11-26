@@ -14,6 +14,7 @@ typedef struct
     char gamemode[3][50];
     char platform[3][50];
     char phrase[200];
+    char company[50];
     Texture2D flag_texture;
     Texture2D logo_texture;
 } Game;

@@ -22,7 +22,7 @@ bool lose = false;
  * "games" armazena o banco de dados completo carregado do CSV.
  * "search_results" é um buffer para mostrar sugestões enquanto o usuário digita.
  */
-static int game_properties_amount = 7;
+static int game_properties_amount = 8; // Atualizado para 8 propriedades
 static int game_amount = 0;
 static Game *games = NULL;
 static Game *search_results = NULL;
@@ -171,7 +171,7 @@ static void get_user_string(char* buffer, int size) {
  * Solicita os dados passo a passo e anexa aos arquivos correspondentes.
  */
 static void terminal_add_game() {
-    char name[50], origin[50], genre[50], theme[50], gamemode[50], platform[50], phrase[200];
+    char name[50], origin[50], genre[50], theme[50], gamemode[50], platform[50], company[50], phrase[200];
     int year;
 
     printf("Adicionar novo jogo:\n");
@@ -190,6 +190,8 @@ static void terminal_add_game() {
     get_user_string(gamemode, 50);
     printf("Plataforma (Ex: PC/Console): ");
     get_user_string(platform, 50);
+    printf("Empresa (Ex: Nintendo): ");
+    get_user_string(company, 50);
     printf("Frase (Dica): ");
     get_user_string(phrase, 200);
 
@@ -206,8 +208,8 @@ static void terminal_add_game() {
         return;
     }
 
-    fprintf(list_file, "%s;%d;%s;%s;%s;%s;%s;\n",
-            name, year, origin, genre, theme, gamemode, platform);
+    fprintf(list_file, "%s;%d;%s;%s;%s;%s;%s;%s;\n",
+            name, year, origin, genre, theme, gamemode, platform, company);
     
     fprintf(phrases_file, "%s\n", phrase);
 
@@ -327,12 +329,13 @@ static int rewrite_files(const char* target_name, const Game* new_data) {
             found = 1;
             if (new_data != NULL) {
                 // Reescreve com os dados novos
-                fprintf(list_out, "%s;%d;%s;%s;%s;%s;%s;\n",
+                fprintf(list_out, "%s;%d;%s;%s;%s;%s;%s;%s;\n",
                         new_data->name, new_data->year, new_data->origin,
                         new_data->genre[0], 
                         new_data->theme,
                         new_data->gamemode[0],
-                        new_data->platform[0]);
+                        new_data->platform[0],
+                        new_data->company);
                 fprintf(phrases_out, "%s\n", new_data->phrase);
             }
             // Se for NULL (excluir), simplesmente não escreve nada no arquivo de saída
@@ -401,6 +404,8 @@ static void terminal_modify_game() {
     get_user_string(new_data.gamemode[0], 50);
     printf("Nova Plataforma: ");
     get_user_string(new_data.platform[0], 50);
+    printf("Nova Empresa: ");
+    get_user_string(new_data.company, 50);
     printf("Nova Frase (Dica): ");
     get_user_string(new_data.phrase, 200);
 
@@ -478,61 +483,43 @@ void update_list() {
  */
 void load_list() {
     FILE *list_file = fopen("list.csv", "r");
-    if (list_file == NULL){
-        perror("Error reading list!\n");
-        exit(1);
-    }
+    if (list_file == NULL) { perror("Erro list.csv"); exit(1); }
     
     game_amount = 0;
     char buffer[512];
-    // Primeiro passamos pelo arquivo apenas para contar quantos jogos existem
-    while (fgets(buffer, sizeof(buffer), list_file)) {
-        game_amount++;
-    }
-    fclose(list_file);
+    while (fgets(buffer, sizeof(buffer), list_file)) game_amount++;
+    rewind(list_file); // Volta ao inicio do arquivo
 
-    if (game_amount == 0) {
-        printf("Nenhum jogo encontrado em list.csv! Saindo.\n");
-        exit(1);
-    }
-
-    printf("Total de %d jogos encontrados. Carregando...\n", game_amount);
+    if (game_amount == 0) exit(1);
 
     games = (Game*)calloc(game_amount, sizeof(Game));
     search_results = (Game*)calloc(game_amount, sizeof(Game));
-    
-    if (games == NULL || search_results == NULL) {
-        perror("Falha ao alocar memoria para a lista de jogos");
-        exit(1);
-    }
     search_capacity = game_amount;
 
-    list_file = fopen("list.csv", "r");
-    if (list_file == NULL) {
-        exit(1);
-    }
-
     for (int i = 0; i < game_amount; i++) {
-        int _game = fscanf(list_file, "%49[^;];%d;%49[^;];%49[^;];%49[^;];%49[^;];%49[^;];\n", 
+        int read_count = fscanf(list_file, "%49[^;];%d;%49[^;];%49[^;];%49[^;];%49[^;];%49[^;];%49[^;\n]", 
             games[i].name,
             &games[i].year,
             games[i].origin,
             games[i].genre[0], 
             games[i].theme,
             games[i].gamemode[0],
-            games[i].platform[0]
+            games[i].platform[0],
+            games[i].company 
         );
 
-        if (_game != game_properties_amount) {
-            fprintf(stderr, "Erro de formato na linha %d de list.csv\n", i + 1);
-            break; 
+        // Limpa o resto da linha (o \n e possíveis ; extras)
+        // Isso garante que o ponteiro do arquivo comece limpo na próxima linha
+        int c;
+        while ((c = fgetc(list_file)) != '\n' && c != EOF);
+
+        if (read_count != game_properties_amount) {
+            fprintf(stderr, "Erro de formato linha %d. Lido %d campos.\n", i + 1, read_count);
+            // Não damos break para tentar ler os próximos, mas idealmente deveria arrumar o CSV
         }
         
-        // Faz backup das strings originais antes de dividir
-        char original_genre[50];
-        char original_gamemode[50];
-        char original_platform[50];
-        
+        // Backup e Split (mantido igual)
+        char original_genre[50], original_gamemode[50], original_platform[50];
         strcpy(original_genre, games[i].genre[0]);
         strcpy(original_gamemode, games[i].gamemode[0]);
         strcpy(original_platform, games[i].platform[0]);
@@ -541,12 +528,11 @@ void load_list() {
         split_string(games[i].gamemode);
         split_string(games[i].platform);
 
-        // Restaura a string original na primeira posição para referência futura
         strcpy(games[i].genre[0], original_genre);
         strcpy(games[i].gamemode[0], original_gamemode);
         strcpy(games[i].platform[0], original_platform);
 
-        // Carrega imagens. Se não achar a bandeira específica, usa uma padrão.
+        // Assets
         Image flag_image = LoadImage(TextFormat("sources/flags/%s.png", games[i].origin));
         if (flag_image.data == NULL) flag_image = LoadImage("sources/flags/flag.png");
         games[i].flag_texture = LoadTextureFromImage(flag_image);
@@ -556,33 +542,20 @@ void load_list() {
         games[i].logo_texture = LoadTextureFromImage(logo_image);
         UnloadImage(logo_image);
 
-        if (games[i].logo_texture.height != 0) {
-            games[i].logo_texture.width = 64 * games[i].logo_texture.width/games[i].logo_texture.height;
-        }
+        if (games[i].logo_texture.height != 0) games[i].logo_texture.width = 64 * games[i].logo_texture.width/games[i].logo_texture.height;
         games[i].logo_texture.height = 64;
     }
     fclose(list_file);
 
-    // Carregamento das frases (dicas)
     FILE *phrases_file = fopen("frases.csv", "r");
-    if (phrases_file == NULL){
-        perror("PHRASE LIST NOT LOADED\n");
-        exit(1);
+    if (phrases_file) {
+        for (int i = 0; i < game_amount; i++) fscanf(phrases_file, " %199[^\n]\n", games[i].phrase);
+        fclose(phrases_file);
     }
-
-    for (int i = 0; i < game_amount; i++) {
-        if (fscanf(phrases_file, " %199[^\n]\n", games[i].phrase) != 1) {
-            fprintf(stderr, "Erro de formato ou falta de linhas em frases.csv (esperava %d, parou em %d)\n", game_amount, i);
-            break;
-        }
-    }
-    fclose(phrases_file);
 }
 
 #pragma endregion
-#pragma region Configurações
 
-#pragma endregion
 #pragma region Configurações
 
 // Função para carregar as texturas e as imagens auxiliares, como corações, bandeiras etc
@@ -821,7 +794,7 @@ void draw_gameplay_world(void) {
         // Layout
         int row_height = 185;
         int font_size = 30;
-        int padding = 40;
+        int padding = 20;
         
         int y_off_logo = 180;
         int y_off_header = 110;
@@ -978,6 +951,25 @@ void draw_gameplay_world(void) {
             
             x_diff = MeasureText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), font_size) + 10;
             x_offset += x_diff + fmaxf(0, MeasureText("PLATAFORMA", font_size) + padding - x_diff);
+
+            // EMPRESA
+            DrawText("EMPRESA", x_offset + shadow_offset, pos_y_header + shadow_offset, font_size, col_shadow);
+            DrawText("EMPRESA", x_offset, pos_y_header, font_size, col_header);
+            
+            Color company_color = (strcmp(selected_game.company, correct_game.company) == 0) ? col_correct : col_wrong;
+            
+            // Formatação do nome da empresa para quebra de linha se longo
+            char company_draw[50];
+            strcpy(company_draw, selected_game.company);
+            if (strlen(company_draw) != strcspn(company_draw, " ")) {
+                company_draw[strcspn(company_draw, " ")] = '\n';
+            }
+
+            DrawText(company_draw, x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+            DrawText(company_draw, x_offset, pos_y_value, font_size, company_color);
+            
+            x_diff = MeasureText(company_draw, font_size) + padding;
+            x_offset += x_diff + fmaxf(0, MeasureText("EMPRESA", font_size) + padding - x_diff);
         }
     }
 
