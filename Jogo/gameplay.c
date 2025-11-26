@@ -541,7 +541,7 @@ void load_list() {
         Image logo_image = LoadImage(TextFormat("logos/logo %s.png", games[i].name));
         games[i].logo_texture = LoadTextureFromImage(logo_image);
         UnloadImage(logo_image);
-
+        
         if (games[i].logo_texture.height != 0) games[i].logo_texture.width = 64 * games[i].logo_texture.width/games[i].logo_texture.height;
         games[i].logo_texture.height = 64;
     }
@@ -982,11 +982,11 @@ void draw_gameplay_world(void) {
     }
     if (hint_2) {
         Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
-        Vector2 destPos = { screen_width - cover_texture.width - 20.0f, screen_height - cover_texture.height - 20.0f};
+        Vector2 destPos = { screen_width - cover_texture.width - 20.0f, 20};
         DrawTextureRec(blurred_object_rt.texture, sourceRect, destPos, WHITE);
     }
     if (hint_3) {
-        DrawTexture(cover_texture, screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, WHITE);
+        DrawTexture(cover_texture, screen_width - cover_texture.width - 20, 20, WHITE);
     }
 }
 
