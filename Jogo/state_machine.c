@@ -106,7 +106,6 @@ static GameScreen previous_screen = SCREEN_MAIN;
 static Sound sfx2 = {0};
 static Sound sfx3 = {0};
 
-
 #pragma endregion
 
 #pragma region Gerenciamento de assets básicos
@@ -573,6 +572,7 @@ int main()
     music_lose = LoadMusicStream("musicas/lose_theme.ogg");
     sfx2 = LoadSound("musicas/sfx2.ogg");
     sfx3 = LoadSound("musicas/sfx3.ogg");
+    
 
     current_volume = 0.0f;
     master_volume = 1.0f;

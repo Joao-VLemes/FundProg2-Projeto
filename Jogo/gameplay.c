@@ -15,6 +15,7 @@
 int screen_width = 1280;
 int screen_height = 720;
 bool win = false;
+float win_delay_timer = 0.0f;
 bool lose = false;
 
 /**
@@ -62,6 +63,7 @@ static Texture2D arrow_texture;
 static Texture2D cover_texture;
 
 static Sound sfx1 = {0};
+static Sound sfx4 = {0};
 
 #pragma endregion
 
@@ -588,7 +590,7 @@ void load_games() {
         printf("ERRO FATAL: load_games chamada sem jogos carregados!\n");
         exit(1);
     }
-    int correct_game_index = (rand() % (game_amount));
+    int correct_game_index = 0;//(rand() % (game_amount));
     correct_game = games[correct_game_index];
     
     // Prepara os dados do jogo correto para facilitar comparações
@@ -637,6 +639,7 @@ void init_gameplay() {
     game_camera.zoom = 1.0f;
 
     sfx1 = LoadSound("musicas/sfx1.ogg");
+    sfx1 = LoadSound("musicas/sfx4.ogg");
 }
 
 #pragma endregion
@@ -648,6 +651,19 @@ void init_gameplay() {
  * Processa inputs, atualiza a câmera, gerencia a barra de busca e valida tentativas.
  */
 void update_gameplay(void) {
+    if (win_delay_timer > 0) {
+        win_delay_timer -= GetFrameTime();
+        
+        // Força a câmera a focar na última tentativa (o acerto) durante a revelação
+        float target_y = (185 / 2);
+        game_camera.offset.y = Lerp(game_camera.offset.y, target_y, 0.1f);
+
+        if (win_delay_timer <= 0) {
+            win = true; // Agora sim, autoriza a troca de tela
+        }
+        return; // Bloqueia qualquer outro input (teclado/mouse) enquanto espera
+    }
+
     if (IsKeyPressed(KEY_ESCAPE)) {
         game_finished = true;
         return;
@@ -661,7 +677,7 @@ void update_gameplay(void) {
     // Renderiza a capa do jogo borrada para usar como dica visual
     BeginTextureMode(blurred_object_rt);        
         ClearBackground(BLANK);
-        BeginShaderMode(blur_shader);   
+        BeginShaderMode(blur_shader);
             DrawTexture(cover_texture, 0,0, WHITE);
         EndShaderMode();            
     EndTextureMode();
@@ -760,9 +776,13 @@ void update_gameplay(void) {
         split_string(attempts[attempt_count].platform);
 
         // Verifica vitória ou aplica penalidade (shake)
-        if (strcmp(attempts[attempt_count].name, correct_game.name) != 0) shake(3, 0.4);
-        else win = true;
-
+        if (strcmp(attempts[attempt_count].name, correct_game.name) != 0) {
+            shake(3, 0.4);
+        } else {
+            PlaySound(sfx4);
+            hint_3 = true;
+            win_delay_timer = 2.0f;
+        }
         // Limpa o input
         strcpy(user_input, " ");
         input_index = 0;
@@ -799,7 +819,7 @@ void draw_gameplay_world(void) {
         // Layout
         int row_height = 185;
         int font_size = 30;
-        int padding = 20;
+        int padding = 15;
         
         int y_off_logo = 180;
         int y_off_header = 110;
@@ -1100,6 +1120,7 @@ void unload_global_assets(void) {
     search_capacity = 0;
 
     UnloadSound(sfx1);
+    UnloadSound(sfx4);
 }
 
 #pragma endregion
