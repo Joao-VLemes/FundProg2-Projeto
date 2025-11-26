@@ -639,7 +639,7 @@ void init_gameplay() {
     game_camera.zoom = 1.0f;
 
     sfx1 = LoadSound("musicas/sfx1.ogg");
-    sfx1 = LoadSound("musicas/sfx4.ogg");
+    sfx4 = LoadSound("musicas/sfx4.ogg");
 }
 
 #pragma endregion
