@@ -103,6 +103,10 @@ static Button buttons[3] = {0};
 static GameScreen current_screen = SCREEN_MAIN;
 static GameScreen previous_screen = SCREEN_MAIN; 
 
+static Sound sfx2 = {0};
+static Sound sfx3 = {0};
+
+
 #pragma endregion
 
 #pragma region Gerenciamento de assets básicos
@@ -130,15 +134,21 @@ void press_button(Button* button) {
     button->scale_x = Lerp(button->scale_x, 0.9f, 0.2f);
     button->scale_y = Lerp(button->scale_y, 0.9f, 0.2f);
     button->sourceRec.x = button->sprite.width / 2.0f;
+
+    if (!button->is_pressed) {
+        button->is_pressed = 1;
+        PlaySound(sfx3);
+    }
 }
 
-// Aumenta o botão e muda a cor quando o mouse passa por cima
 void hover_button(Button* button) {
     if (!button->is_hovered) {
         button->is_hovered = 1;
         button->scale_x = Lerp(button->scale_x, 1.1f, 0.2f);
         button->scale_y = Lerp(button->scale_y, 1.1f, 0.2f);
         button->current_color = button->hover_color;
+        // Toca o som de hover apenas uma vez ao entrar no estado hover
+        PlaySound(sfx2);
     }
 }
 
@@ -176,13 +186,15 @@ void draw_button(Button* button) {
 bool check_button_interaction(Button* button) {
     Vector2 mousePos = GetMousePosition();
     if (CheckCollisionPointRec(mousePos, button->area)) {
-        hover_button(button); 
+        hover_button(button);
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             press_button(button); 
         }
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
             return true;
         }
+    } else {
+        reset_button_state(button);
     }
     return 0;
 }
@@ -336,9 +348,11 @@ void update_game_logic() {
     if (can_interact_with_ui) {
         switch (current_screen) {
             case SCREEN_MAIN: {
+                master_volume += (IsKeyPressed(KEY_EQUAL) - IsKeyPressed(KEY_MINUS)) * 0.05f;
+                master_volume = fmaxf(0.0f, master_volume);
+
                 switch_music_track(&music_main);
                 for (int i = 0; i < 3; i++) {
-                    reset_button_state(&buttons[i]);
                     if (check_button_interaction(&buttons[i])) {
                         if (i == BUTTON_START) {
                             // Sinalizamos que precisaremos carregar o gameplay pesado durante a transição
@@ -426,15 +440,62 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
 
         case SCREEN_HOW_TO_PLAY: {
             BeginMode2D(transition_cam);
-                DrawText("Adivinhe o jogo!", 100 + mouse_x, 100 + mouse_y, 20, WHITE);
-                DrawText("Você começa digitando o nome de qualquer jogo.", 100 + mouse_x, 130 + mouse_y, 20, WHITE);
-                DrawText("Após cada palpite, o jogo fornece dicas sobre o jogo correto, ", 100 + mouse_x, 160 + mouse_y, 20, WHITE);
-                DrawText("comparando as características da sua tentativa com as do jogo certo.", 100 + mouse_x, 190 + mouse_y, 20, WHITE);
-                DrawText("Indicadores de Dica:", 100 + mouse_x, 240 + mouse_y, 20, WHITE);
-                DrawText("  A característica está correta.", 100 + mouse_x, 270 + mouse_y, 20, GREEN);
-                DrawText("  A característica está parcialmente correta.", 100 + mouse_x, 300 + mouse_y, 20, YELLOW);
-                DrawText("  A característica está incorreta.", 100 + mouse_x, 330 + mouse_y, 20, RED);
-                DrawText("  Setas: Indicam se o número da Característica correta é maior ou menor do que o seu palpite.", 100 + mouse_x, 360 + mouse_y, 20, GRAY);
+                int start_x = 100;
+                int start_y = 100;
+                int line_spacing = 30;      // Distância entre cada linha
+                int section_gap = 20;       // Espaço extra antes da lista de indicadores
+                int font_size = 30;
+                int shadow_off = 2;         // Distância da sombra
+                
+                int cursor_y = start_y;
+                int draw_x = start_x + (int)mouse_x;
+                int shadow_x = draw_x + shadow_off;
+
+                // Título
+                DrawText("Adivinhe o jogo!", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("Adivinhe o jogo!", draw_x, cursor_y + (int)mouse_y, font_size, WHITE);
+                cursor_y += line_spacing;
+
+                // Linha 1
+                DrawText("Você começa digitando o nome de qualquer jogo.", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("Você começa digitando o nome de qualquer jogo.", draw_x, cursor_y + (int)mouse_y, font_size, WHITE);
+                cursor_y += line_spacing;
+
+                // Linha 2
+                DrawText("Após cada palpite, o jogo fornece dicas sobre o jogo correto, ", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("Após cada palpite, o jogo fornece dicas sobre o jogo correto, ", draw_x, cursor_y + (int)mouse_y, font_size, WHITE);
+                cursor_y += line_spacing;
+
+                // Linha 3
+                DrawText("comparando as características da sua tentativa com as do jogo certo.", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("comparando as características da sua tentativa com as do jogo certo.", draw_x, cursor_y + (int)mouse_y, font_size, WHITE);
+                
+                // Adiciona um espaço extra antes da próxima seção
+                cursor_y += (line_spacing + section_gap);
+
+                // Título da seção
+                DrawText("Indicadores de Dica:", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("Indicadores de Dica:", draw_x, cursor_y + (int)mouse_y, font_size, WHITE);
+                cursor_y += line_spacing;
+
+                // Verde
+                DrawText("  A característica está correta.", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("  A característica está correta.", draw_x, cursor_y + (int)mouse_y, font_size, GREEN);
+                cursor_y += line_spacing;
+
+                // Amarelo
+                DrawText("  A característica está parcialmente correta.", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("  A característica está parcialmente correta.", draw_x, cursor_y + (int)mouse_y, font_size, YELLOW);
+                cursor_y += line_spacing;
+
+                // Vermelho
+                DrawText("  A característica está incorreta.", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("  A característica está incorreta.", draw_x, cursor_y + (int)mouse_y, font_size, RED);
+                cursor_y += line_spacing;
+
+                // Cinza (Setas)
+                DrawText("  Setas: Indicam se o número da característica correta\n  é maior ou menor do que o seu palpite.", shadow_x, cursor_y + (int)mouse_y + shadow_off, font_size, BLACK);
+                DrawText("  Setas: Indicam se o número da característica correta\n  é maior ou menor do que o seu palpite.", draw_x, cursor_y + (int)mouse_y, font_size, GRAY);
             EndMode2D();
         } break;
 
@@ -510,9 +571,11 @@ int main()
     music_main = LoadMusicStream("musicas/main_theme_2.ogg");
     music_win  = LoadMusicStream("musicas/win_theme.ogg");
     music_lose = LoadMusicStream("musicas/lose_theme.ogg");
+    sfx2 = LoadSound("musicas/sfx2.ogg");
+    sfx3 = LoadSound("musicas/sfx3.ogg");
 
     current_volume = 0.0f;
-    master_volume = 0.5f; 
+    master_volume = 1.0f;
 
     PlayMusicStream(music_main);
     current_music = &music_main;
@@ -629,6 +692,8 @@ int main()
     UnloadMusicStream(music_main);
     UnloadMusicStream(music_win);
     UnloadMusicStream(music_lose);
+    UnloadSound(sfx2);
+    UnloadSound(sfx3);
 
     CloseAudioDevice();
     CloseWindow();        

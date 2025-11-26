@@ -61,6 +61,8 @@ static Texture2D heart_texture;
 static Texture2D arrow_texture;
 static Texture2D cover_texture;
 
+static Sound sfx1 = {0};
+
 #pragma endregion
 
 #pragma region Utilitários
@@ -633,6 +635,8 @@ void init_gameplay() {
     game_camera.target = (Vector2){screen_width/2, screen_height/2};
     game_camera.rotation = 0.0f;
     game_camera.zoom = 1.0f;
+
+    sfx1 = LoadSound("musicas/sfx1.ogg");
 }
 
 #pragma endregion
@@ -737,6 +741,7 @@ void update_gameplay(void) {
 
     // Confirmação da tentativa (enter)
     if (IsKeyPressed(KEY_ENTER) && max_search_results >= 0 && strcmp(search_results[selected_search_index].name, "") != 0) {
+        PlaySound(sfx1);
         attempt_count++;
         selected_attempt_index = attempt_count;
         
@@ -983,9 +988,11 @@ void draw_gameplay_world(void) {
     if (hint_2) {
         Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
         Vector2 destPos = { screen_width - cover_texture.width - 20.0f, 20};
+        Vector2 destPos = { screen_width - cover_texture.width - 20.0f, 20.0f};
         DrawTextureRec(blurred_object_rt.texture, sourceRect, destPos, WHITE);
     }
     if (hint_3) {
+        DrawTexture(cover_texture, screen_width - cover_texture.width - 20, 20, WHITE);
         DrawTexture(cover_texture, screen_width - cover_texture.width - 20, 20, WHITE);
     }
 }
@@ -1093,6 +1100,8 @@ void unload_global_assets(void) {
 
     game_amount = 0;
     search_capacity = 0;
+
+    UnloadSound(sfx1);
 }
 
 #pragma endregion
