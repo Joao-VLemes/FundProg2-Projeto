@@ -590,7 +590,7 @@ void load_games() {
         printf("ERRO FATAL: load_games chamada sem jogos carregados!\n");
         exit(1);
     }
-    int correct_game_index = 0;//(rand() % (game_amount));
+    int correct_game_index = (rand() % (game_amount));
     correct_game = games[correct_game_index];
     
     // Prepara os dados do jogo correto para facilitar comparações
