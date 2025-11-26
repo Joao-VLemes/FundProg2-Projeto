@@ -6,6 +6,8 @@
 #include <time.h>
 #include <ctype.h>
 
+#pragma region Globais e estados
+
 /**
  * Definições globais de resolução e estados de vitória/derrota.
  * Estas variáveis controlam o fluxo macro do jogo.
@@ -17,8 +19,8 @@ bool lose = false;
 
 /**
  * Gerenciamento dinâmico da lista de jogos.
- * 'games' armazena o banco de dados completo carregado do CSV.
- * 'search_results' é um buffer para mostrar sugestões enquanto o usuário digita.
+ * "games" armazena o banco de dados completo carregado do CSV.
+ * "search_results" é um buffer para mostrar sugestões enquanto o usuário digita.
  */
 static int game_properties_amount = 7;
 static int game_amount = 0;
@@ -58,6 +60,10 @@ static float shake_power = 0;
 static Texture2D heart_texture;
 static Texture2D arrow_texture;
 static Texture2D cover_texture;
+
+#pragma endregion
+
+#pragma region Utilitários
 
 /**
  * Quebra uma string contendo barras (ex: "Ação/Aventura") em até 3 partes.
@@ -155,6 +161,10 @@ static void get_user_string(char* buffer, int size) {
     fgets(buffer, size, stdin);
     buffer[strcspn(buffer, "\n")] = 0;
 }
+
+#pragma endregion
+
+#pragma region Gerenciamento de dados
 
 /**
  * Interface de terminal para cadastrar um novo jogo no banco de dados (CSV).
@@ -544,8 +554,10 @@ void load_list() {
         games[i].logo_texture = LoadTextureFromImage(logo_image);
         UnloadImage(logo_image);
 
-        if (games[i].logo_texture.height != 0) games[i].logo_texture.width = 32* games[i].logo_texture.width/games[i].logo_texture.height;
-        games[i].logo_texture.height = 32;
+        if (games[i].logo_texture.height != 0) {
+            games[i].logo_texture.width = 64 * games[i].logo_texture.width/games[i].logo_texture.height;
+        }
+        games[i].logo_texture.height = 64;
     }
     fclose(list_file);
 
@@ -564,6 +576,9 @@ void load_list() {
     }
     fclose(phrases_file);
 }
+
+#pragma endregion
+#pragma region Configurações
 
 void load_texture() {
     Image arrow_image = LoadImage("sources/flecha.png");
@@ -641,8 +656,12 @@ void init_gameplay() {
     game_camera.zoom = 1.0f;
 }
 
+#pragma endregion
+
+#pragma region Lógica de gameplay
+
 /**
- * Função principal de atualização do jogo (Game Loop).
+ * Função principal de atualização do jogo (game Loop).
  * Processa inputs, atualiza a câmera, gerencia a barra de busca e valida tentativas.
  */
 void update_gameplay(void) {
@@ -737,7 +756,7 @@ void update_gameplay(void) {
         }
     }
 
-    // Confirmação da tentativa (Enter)
+    // Confirmação da tentativa (enter)
     if (IsKeyPressed(KEY_ENTER) && max_search_results >= 0 && strcmp(search_results[selected_search_index].name, "") != 0) {
         attempt_count++;
         selected_attempt_index = attempt_count;
@@ -768,7 +787,7 @@ void update_gameplay(void) {
         selected_search_index = 0;
     }
 
-    // Controle da câmera (Scroll do mouse)
+    // Controle da câmera (scroll do mouse)
     game_camera.offset.y += (int)(GetMouseWheelMove()*35);
     if (game_camera.offset.y >= screen_height/2-2) {
         game_camera.offset.y = screen_height/2;
@@ -782,6 +801,10 @@ Camera2D get_gameplay_camera(void) {
     return game_camera;
 }
 
+#pragma endregion
+
+#pragma region Renderização
+
 /**
  * Renderiza o "mundo" do jogo, ou seja, a lista de tentativas passadas.
  * Compara cada atributo (ano, gênero, plataforma) com o jogo correto
@@ -789,10 +812,37 @@ Camera2D get_gameplay_camera(void) {
  */
 void draw_gameplay_world(void) {
     if (attempt_count != -1 ) {
+        // Layout
+        int row_height = 185;
+        int font_size = 30;
+        int padding = 40;
+        
+        int y_off_logo = 180;
+        int y_off_header = 110;
+        int y_off_value = 80;
+        
+        // Configuração da sombra
+        int shadow_offset = 2; 
+
+        // Paleta de cores
+        Color col_header = GRAY; // Títulos das colunas (YEAR, ORIGIN...)
+        Color col_game_name = PINK; // Nome do jogo ao lado do logo
+        Color col_correct = GREEN; // Valor correto
+        Color col_wrong = RED; // Valor incorreto
+        Color col_partial = YELLOW; // Valor parcialmente correto
+        Color col_shadow = BLACK; // Sombra/outline de texturas
+        Color col_tint = WHITE; // Cor padrão
+
         for (int i = 0; i < attempt_count+1; i++){
             Game selected_game = attempts[attempt_count-i];
             
-            // Formata o nome para quebrar linhas se for muito longo
+            // Cálculos de posição y
+            int current_row_y = i * row_height;
+            int pos_y_logo = screen_height - y_off_logo + current_row_y;
+            int pos_y_header = screen_height - y_off_header + current_row_y;
+            int pos_y_value = screen_height - y_off_value + current_row_y;
+
+            // Formatação do nome
             char name_to_draw[50];
             strcpy(name_to_draw, selected_game.name);
             if (strlen(name_to_draw) >= 10) {
@@ -803,69 +853,134 @@ void draw_gameplay_world(void) {
                     }
                 }
             }
-            DrawText(name_to_draw, 30 + selected_game.logo_texture.width, screen_height - 180 +  i*185, 30, PINK);
             
-            DrawTextureEx(selected_game.logo_texture, (Vector2){20, screen_height - 180 +  i*185}, 0, 1.1, GRAY);
-            DrawTexture(selected_game.logo_texture, 20, screen_height - 180 +  i*185, WHITE); 
+            // Desenha nome e logo
+            // Shadow
+            DrawText(name_to_draw, 50 + selected_game.logo_texture.width + shadow_offset, pos_y_logo + shadow_offset, font_size, col_shadow);
+            // Main Text
+            DrawText(name_to_draw, 50 + selected_game.logo_texture.width, pos_y_logo, font_size, col_game_name);
+            
+            DrawTextureEx(selected_game.logo_texture, (Vector2){20 + shadow_offset, pos_y_logo + shadow_offset}, 0, 1, col_shadow);
+            DrawTexture(selected_game.logo_texture, 20, pos_y_logo, col_tint); 
+            
             int x_offset = 20;
+            int x_diff = 0;
 
-            // ANO: Mostra seta para cima/baixo se o ano for maior/menor
-            DrawText("YEAR", x_offset, screen_height - 110 + i*185, 15, GRAY);
-            if (selected_game.year == correct_game.year) DrawText(TextFormat("%d",selected_game.year), 20, screen_height - 80 + i*185, 30, GREEN);
-            else {
-                DrawText(TextFormat("%d",selected_game.year), x_offset, screen_height - 80 + i*185, 30, RED);
-                DrawTexturePro(arrow_texture, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(TextFormat("%d",selected_game.year), 30) + 35, screen_height - 67 + i*185, 15, 14}, (Vector2){7,7}, (selected_game.year > correct_game.year ? 180 : 0), WHITE);    
+            // YEAR
+            DrawText("ANO", x_offset + shadow_offset, pos_y_header + shadow_offset, font_size, col_shadow);
+            DrawText("ANO", x_offset, pos_y_header, font_size, col_header);
+            
+            if (selected_game.year == correct_game.year) {
+                DrawText(TextFormat("%d", selected_game.year), padding + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%d", selected_game.year), padding, pos_y_value, font_size, col_correct);
+            } else {
+                DrawText(TextFormat("%d", selected_game.year), x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%d", selected_game.year), x_offset, pos_y_value, font_size, col_wrong);
+                
+                int arrow_x = MeasureText(TextFormat("%d", selected_game.year), font_size) + 35;
+                int arrow_y = screen_height - 67 + current_row_y; 
+                
+                // Sombra para a seta (opcional, mas consistente)
+                DrawTexturePro(arrow_texture, (Rectangle){0, 0, 15, 14}, (Rectangle){arrow_x + 2, arrow_y + 2, 15, 14}, (Vector2){7,7}, (selected_game.year > correct_game.year ? 180 : 0), col_shadow);    
+                DrawTexturePro(arrow_texture, (Rectangle){0, 0, 15, 14}, (Rectangle){arrow_x, arrow_y, 15, 14}, (Vector2){7,7}, (selected_game.year > correct_game.year ? 180 : 0), col_tint);    
             }
-            x_offset += MeasureText(TextFormat("%d",selected_game.year), 30) + 33;
+            
+            x_diff = MeasureText(TextFormat("%d", selected_game.year), font_size) + 33;
+            x_offset += x_diff + fmaxf(0, MeasureText("ANO", font_size) + padding - x_diff);
+            
 
-            // ORIGEM: Desenha a bandeira e moldura colorida
-            DrawText("ORIGIN", x_offset, screen_height - 110 + i*185, 15, GRAY);
-            DrawTexturePro(selected_game.flag_texture, (Rectangle){0, 0, (float)selected_game.flag_texture.width, (float)selected_game.flag_texture.height}, (Rectangle){x_offset, screen_height - 80 + i*185, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2}, (Vector2){0,0}, 0, WHITE);
-            DrawRectangleLinesEx((Rectangle){x_offset,  screen_height - 80 + i*185, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2 }, 2.5, (strcmp(selected_game.origin, correct_game.origin) == 0) ? GREEN : RED);
-            x_offset += selected_game.flag_texture.width*2 + 20;
+            // ORIGIN
+            DrawText("ORIGEM", x_offset + shadow_offset, pos_y_header + shadow_offset, font_size, col_shadow);
+            DrawText("ORIGEM", x_offset, pos_y_header, font_size, col_header);
+            
+            // Sombra da bandeira (offset manual no rect de destino)
+            DrawTexturePro(selected_game.flag_texture, (Rectangle){0, 0, (float)selected_game.flag_texture.width, (float)selected_game.flag_texture.height}, (Rectangle){x_offset + 2, pos_y_value + 2, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2}, (Vector2){0,0}, 0, col_shadow);
+            DrawTexturePro(selected_game.flag_texture, (Rectangle){0, 0, (float)selected_game.flag_texture.width, (float)selected_game.flag_texture.height}, (Rectangle){x_offset, pos_y_value, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2}, (Vector2){0,0}, 0, col_tint);
+            
+            Color border_color = (strcmp(selected_game.origin, correct_game.origin) == 0) ? col_correct : col_wrong;
+            DrawRectangleLinesEx((Rectangle){x_offset,  pos_y_value, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2 }, 2.5, border_color);
+            
+            x_diff = selected_game.flag_texture.width*2 + padding;
+            x_offset += x_diff + fmaxf(0, MeasureText("ORIGEM", font_size) + padding - x_diff);
 
-            // GÊNERO
-            DrawText("GENRE", x_offset, screen_height - 110 + i*185, 15, GRAY);
+            // GENRE
+            DrawText("GÊNERO", x_offset + shadow_offset, pos_y_header + shadow_offset, font_size, col_shadow);
+            DrawText("GÊNERO", x_offset, pos_y_header, font_size, col_header);
             int genre_equality = check_equality(correct_game.genre, selected_game.genre);
-            if (genre_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  screen_height - 80 + i*185, 30, GREEN);
-            else DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  screen_height - 80 + i*185, 30, (genre_equality == 0) ? RED : YELLOW);
-            x_offset += MeasureText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), 30) + 20;
+            
+            if (genre_equality == 1) {
+                DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  pos_y_value, font_size, col_correct);
+            } else {
+                DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  pos_y_value, font_size, (genre_equality == 0) ? col_wrong : col_partial);
+            }
+            
+            x_diff = MeasureText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), font_size) + padding;
+            x_offset += x_diff + fmaxf(0, MeasureText("GÊNERO", font_size) + padding - x_diff);
 
-            // TEMA
-            DrawText("THEME", x_offset, screen_height - 110 + i*185, 15, GRAY);
+            // THEME
+            DrawText("TEMA", x_offset + shadow_offset, pos_y_header + shadow_offset, font_size, col_shadow);
+            DrawText("TEMA", x_offset, pos_y_header, font_size, col_header);
+            
             char theme_to_draw[50];
             strcpy(theme_to_draw, selected_game.theme);
             if (strlen(theme_to_draw) != strcspn(theme_to_draw, " ")) {
                 theme_to_draw[strcspn(theme_to_draw, " ")] = '\n';
             }
-            DrawText(theme_to_draw, x_offset,  screen_height - 80 + i*185, 30, (strcmp(selected_game.theme, correct_game.theme) == 0) ? GREEN : RED);
-            x_offset += MeasureText(theme_to_draw, 30) + 20;
+            
+            Color theme_color = (strcmp(selected_game.theme, correct_game.theme) == 0) ? col_correct : col_wrong;
+            DrawText(theme_to_draw, x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+            DrawText(theme_to_draw, x_offset,  pos_y_value, font_size, theme_color);
+            
+            x_diff = MeasureText(theme_to_draw, font_size) + padding;
+            x_offset += x_diff + fmaxf(0, MeasureText("TEMA", font_size) + padding - x_diff);
 
-
-            // MODO DE JOGO
-            DrawText("GAMEMODE", x_offset, screen_height - 110 + i*185, 15, GRAY);
+            // GAMEMODE
+            DrawText("GAMEMODE", x_offset + shadow_offset, pos_y_header + shadow_offset, font_size, col_shadow);
+            DrawText("GAMEMODE", x_offset, pos_y_header, font_size, col_header);
             int gamemode_equality = check_equality(correct_game.gamemode, selected_game.gamemode);
-            if (gamemode_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  screen_height - 80 + i*185, 30, GREEN);
-            else DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  screen_height - 80 + i*185, 30, (gamemode_equality == 0) ? RED : YELLOW);
-            x_offset += MeasureText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), 30) + 20;
+            
+            if (gamemode_equality == 1) {
+                DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  pos_y_value, font_size, col_correct);
+            } else {
+                DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset + shadow_offset, pos_y_value + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  pos_y_value, font_size, (gamemode_equality == 0) ? col_wrong : col_partial);
+            }
+            
+            x_diff = MeasureText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), font_size) + padding;
+            x_offset += x_diff + fmaxf(0, MeasureText("GAMEMODE", font_size) + padding - x_diff);
 
-            // PLATAFORMA
+            // PLATFORM
             int platform_equality = check_equality(correct_game.platform, selected_game.platform);
             int platform_count = 0;
             for (int k = 0; k < 3; k++) if (strlen(selected_game.platform[k]) > 0) platform_count++;
             
-            DrawText("PLATAFORM", x_offset, screen_height - 110 - (platform_count > 1 ? 15 * (platform_count-1) : 0) + i*185, 15, GRAY);
-            if (platform_equality == 1) DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset,  screen_height - 80 + i*185 - (platform_count > 1 ? 15 * (platform_count-1) : 0), 30, GREEN);
-            else DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset,  screen_height - 80 + i*185 - (platform_count > 1 ? 15 * (platform_count-1) : 0), 30, (platform_equality == 0) ? RED : YELLOW);
-            x_offset += MeasureText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), 30) + 10;
+            int platform_y_adjustment = (platform_count > 1 ? 15 * (platform_count-1) : 0);
+
+            DrawText("PLATAFORMA", x_offset + shadow_offset, pos_y_header - platform_y_adjustment + shadow_offset, font_size, col_shadow);
+            DrawText("PLATAFORMA", x_offset, pos_y_header - platform_y_adjustment, font_size, col_header);
+            
+            if (platform_equality == 1) {
+                DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset + shadow_offset, pos_y_value - platform_y_adjustment + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset,  pos_y_value - platform_y_adjustment, font_size, col_correct);
+            } else {
+                DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset + shadow_offset, pos_y_value - platform_y_adjustment + shadow_offset, font_size, col_shadow);
+                DrawText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), x_offset,  pos_y_value - platform_y_adjustment, font_size, (platform_equality == 0) ? col_wrong : col_partial);
+            }
+            
+            x_diff = MeasureText(TextFormat("%s\n%s\n%s", selected_game.platform[0], selected_game.platform[1], selected_game.platform[2]), font_size) + 10;
+            x_offset += x_diff + fmaxf(0, MeasureText("PLATAFORMA", font_size) + padding - x_diff);
         }
     }
 
-    DrawRectangle(screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, BLACK);
+    DrawRectangle(screen_width - cover_texture.width - 20, 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, Fade(BLACK, 0.25f));
 
     // Renderiza as dicas (frase, imagem borrada, imagem nítida)
     if (hint_1) {
-        DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 500, 20, YELLOW);
+        DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 30) / 2 + 2, 500 + 2, 30, BLACK);
+        DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 30) / 2, 500, 30, YELLOW);
     }
     if (hint_2) {
         Rectangle sourceRect = { 0, 0, (float)blurred_object_rt.texture.width, (float)-blurred_object_rt.texture.height };
@@ -910,7 +1025,7 @@ void draw_gameplay_ui(void) {
         }
     }
 
-    // Calcula e desenha as vidas restantes (Corações)
+    // Calcula e desenha as vidas restantes (corações)
     int lives = 20 - attempt_count - 1;
 
     for (int i = 0; i < (int)ceil((double)lives / 2); i++) {
@@ -919,6 +1034,7 @@ void draw_gameplay_ui(void) {
         if (i == lives / 2 && lives % 2 != 0) sprite = 1; // Meio coração
         if (i == 7 || i == 3 || i == 0 ) hint_sprite = 2; // Coração dourado/especial (indicador de dica)
         sprite += hint_sprite;
+        DrawTexturePro(heart_texture, (Rectangle){16.0f * sprite, 16.0f * sprite, 16, 16}, (Rectangle){4 + 34.0f * i + 2, 4 + 2, 32, 32}, (Vector2){0,0}, 0, BLACK);
         DrawTexturePro(heart_texture, (Rectangle){16.0f * sprite, 16.0f * sprite, 16, 16}, (Rectangle){4 + 34.0f * i, 4, 32, 32}, (Vector2){0,0}, 0, WHITE);
     }
 
@@ -928,6 +1044,10 @@ void draw_gameplay_ui(void) {
     if (lives <= 1) hint_3 = true;
     if (lives <= 0) lose = true;
 }
+
+#pragma endregion
+
+#pragma region Ciclo de vida e limpeza
 
 bool is_gameplay_finished(void) {
     return game_finished;
@@ -976,3 +1096,5 @@ void unload_global_assets(void) {
     game_amount = 0;
     search_capacity = 0;
 }
+
+#pragma endregion
