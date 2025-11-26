@@ -317,6 +317,7 @@ static int rewrite_files(const char* target_name, const Game* new_data) {
     return found;
 }
 
+// Função para excluir os dados do jogo que desejar
 static void terminal_delete_game() {
     char name_to_delete[50];
     printf("Excluir jogo:\n");
@@ -330,6 +331,7 @@ static void terminal_delete_game() {
     }
 }
 
+// Função para modificar os dados do jogo que desejar
 static void terminal_modify_game() {
     char name_to_modify[50];
     printf("Alterar jogo:\n");
@@ -374,6 +376,7 @@ void initialize_list() {
     attempts = NULL;
 }
 
+// Função que junta as outras funções em um switch
 void update_list() {
     int choice = 0;
 
@@ -422,6 +425,7 @@ void update_list() {
     }
 }
 
+// Função para abrir os arquivos de frases e a lista, fazendo as alterações desejadas
 void load_list() {
     FILE *list_file = fopen("list.csv", "r");
     if (list_file == NULL){
@@ -521,6 +525,7 @@ void load_list() {
     fclose(phrases_file);
 }
 
+// Função para carregar as texturas e as imagens auxiliares, como corações, bandeiras etc
 void load_texture() {
     Image arrow_image = LoadImage("sources/flecha.png");
     arrow_texture = LoadTextureFromImage(arrow_image);
@@ -540,6 +545,7 @@ void load_texture() {
     UnloadImage(image);
 }
 
+// Função para gerar o aleatoriamente o jogo com suas características
 void load_games() {
     if (game_amount <= 0) {
         printf("ERRO FATAL: load_games chamada sem jogos carregados!\n");
@@ -553,6 +559,7 @@ void load_games() {
     split_string(correct_game.platform);
 }
 
+// Função para fazer a contagem de tentativas, movimentar a tela , desborrar a capa do jogo (dica)
 void init_gameplay() {
     win = false;
     lose = false;
@@ -589,6 +596,8 @@ void init_gameplay() {
     game_camera.zoom = 1.0f;
 }
 
+/*Função para fazer a busca dos nomes do jogo conforme a letra digitada. Apagando das tentativas o nome ja escolhido e 
+    para descer a "câmera" para ver as tentativas anteriores */
 void update_gameplay(void) {
     if (IsKeyPressed(KEY_ESCAPE)) {
         game_finished = true;
@@ -724,6 +733,7 @@ Camera2D get_gameplay_camera(void) {
     return game_camera;
 }
 
+// Função para gerar a tela de gameplay
 void draw_gameplay_world(void) {
     if (attempt_count != -1 ) {
         for (int i = 0; i < attempt_count+1; i++){
@@ -840,7 +850,7 @@ void draw_gameplay_ui(void) {
         }
     }
 
-    //Lives
+    // Vidas/Tentativas
     int lives = 20 - attempt_count - 1;
 
     for (int i = 0; i < (int)ceil((double)lives / 2); i++) {
