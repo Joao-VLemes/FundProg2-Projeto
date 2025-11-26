@@ -1,4 +1,4 @@
-#include "gameplay.h" // Inclui nossas próprias definições
+#include "gameplay.h"
 #include "raymath.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,18 +6,25 @@
 #include <time.h>
 #include <ctype.h>
 
-// #define GAME_AMOUNT 100 // REMOVIDO
-
+/**
+ * Definições globais de resolução e estados de vitória/derrota.
+ * Estas variáveis controlam o fluxo macro do jogo.
+ */
 int screen_width = 1280;
 int screen_height = 720;
 bool win = false;
 bool lose = false;
 
+/**
+ * Gerenciamento dinâmico da lista de jogos.
+ * 'games' armazena o banco de dados completo carregado do CSV.
+ * 'search_results' é um buffer para mostrar sugestões enquanto o usuário digita.
+ */
 static int game_properties_amount = 7;
-static int game_amount = 0; // MODIFICADO: Agora é dinâmico, começa em 0
-static Game *games = NULL; // MODIFICADO: Agora é um ponteiro dinâmico
-static Game *search_results = NULL; // MODIFICADO: Agora é um ponteiro dinâmico
-static int search_capacity = 0; // MODIFICADO: Capacidade do array de busca
+static int game_amount = 0;
+static Game *games = NULL;
+static Game *search_results = NULL;
+static int search_capacity = 0;
 
 static Game correct_game;
 static Game *attempts = NULL;
@@ -25,10 +32,10 @@ static Game *attempts = NULL;
 static int attempt_count = -1;
 static int selected_attempt_index = 0;
 
-static int max_search_results = 0; // Será resetado para -1 no init/search
+static int max_search_results = 0;
 static int selected_search_index = 0;
 
-// Variáveis de estado do Gameplay
+// Variáveis para controlar a entrada de texto e o estado das dicas
 static char user_input[50] = "";
 static int input_index = 0;
 static bool hint_1 = false;
@@ -36,12 +43,13 @@ static bool hint_2 = false;
 static bool hint_3 = false;
 static bool game_finished = false;
 
-// Assets da rodada
+// Recursos gráficos e shaders usados para efeitos visuais na rodada
 static Shader blur_shader = {0};
 static RenderTexture2D blurred_object_rt = {0};
 static Camera2D game_camera = {0};
 static Vector2 base_camera_offset = {0};
 
+// Controle do efeito de "tremer" a tela (screen shake) quando erra
 static bool shaking = false;
 static bool moving_up = false;
 static float shake_time = 0;
@@ -51,10 +59,15 @@ static Texture2D heart_texture;
 static Texture2D arrow_texture;
 static Texture2D cover_texture;
 
-
+/**
+ * Quebra uma string contendo barras (ex: "Ação/Aventura") em até 3 partes.
+ * Útil para comparar gêneros ou plataformas separadamente.
+ */
 static void split_string(char str_array[3][50]) {
     int index = 0;
+
     for (int i = 1; i < 3; i++) strcpy(str_array[i], "");
+
     if (strcspn(str_array[0], "/") == strlen(str_array[0])) {
         return; 
     }
@@ -69,6 +82,11 @@ static void split_string(char str_array[3][50]) {
         token = strtok(NULL, "/");
     }
 }
+
+/**
+ * Compara dois arrays de strings (atributos do jogo) para determinar a similaridade.
+ * Retorna 1 se for exato, 2 se houver correspondência parcial, e 0 se nada bater.
+ */
 static int check_equality(char a[3][50], char b[3][50]) {
     int equal_count = 0;
     int count_a = 0; int count_b = 0;
@@ -92,15 +110,19 @@ static int check_equality(char a[3][50], char b[3][50]) {
         }
         if (found) equal_count++;
     }
+
     if (count_a == equal_count && count_a == count_b) return 1;
     if (equal_count > 0) return 2;
     return 0;
 }
 
-// (Funções 'shake_offset' e 'shake' originais mantidas)
+/**
+ * Calcula o deslocamento aleatório da câmera para o efeito de impacto.
+ */
 static Vector2 shake_offset () {
     Vector2 offset = {0.0f, 0.0f};
     shake_time -= GetFrameTime();
+
     if (shake_time <= 0) {
         shake_time = 0;
         moving_up = true;
@@ -114,6 +136,10 @@ static Vector2 shake_offset () {
     }
     return offset;
 }
+
+/**
+ * Ativa o efeito de tremor na tela com uma força e duração específicas.
+ */
 static void shake(float power, float time) {
     shake_time = time;
     shake_power = power;
@@ -130,6 +156,10 @@ static void get_user_string(char* buffer, int size) {
     buffer[strcspn(buffer, "\n")] = 0;
 }
 
+/**
+ * Interface de terminal para cadastrar um novo jogo no banco de dados (CSV).
+ * Solicita os dados passo a passo e anexa aos arquivos correspondentes.
+ */
 static void terminal_add_game() {
     char name[50], origin[50], genre[50], theme[50], gamemode[50], platform[50], phrase[200];
     int year;
@@ -153,7 +183,7 @@ static void terminal_add_game() {
     printf("Frase (Dica): ");
     get_user_string(phrase, 200);
 
-    // Abre os arquivos em modo "append" (a)
+    // Abre os arquivos para adicionar conteúdo no final
     FILE *list_file = fopen("list.csv", "a");
     FILE *phrases_file = fopen("frases.csv", "a");
     FILE *capa_file = fopen(TextFormat("capas/capa %s.png", name), "wb");
@@ -166,7 +196,6 @@ static void terminal_add_game() {
         return;
     }
 
-    // Escreve nos arquivos
     fprintf(list_file, "%s;%d;%s;%s;%s;%s;%s;\n",
             name, year, origin, genre, theme, gamemode, platform);
     
@@ -180,6 +209,9 @@ static void terminal_add_game() {
     printf("Jogo '%s' adicionado com sucesso!\n", name);
 }
 
+/**
+ * Lista todos os jogos presentes no arquivo CSV no console.
+ */
 static void terminal_list_games() {
     FILE *list_file = fopen("list.csv", "r");
     if (list_file == NULL) {
@@ -191,8 +223,7 @@ static void terminal_list_games() {
     char name[50];
     int count = 0;
     
-    // Formato de leitura simplificado
-    // Apenas lê o nome (o primeiro campo antes do ';')
+    // Lê apenas o primeiro campo (nome) ignorando o resto da linha
     while (fscanf(list_file, "%49[^;];%*[^\n]\n", name) == 1) {
         printf("%d. %s\n", ++count, name);
     }
@@ -204,6 +235,9 @@ static void terminal_list_games() {
     printf("----------------------------------\n");
 }
 
+/**
+ * Busca simples por substring no arquivo CSV para encontrar jogos específicos.
+ */
 static void terminal_search_game() {
     char search_name[50];
     printf("Digite o nome (ou parte) do jogo a pesquisar: ");
@@ -215,20 +249,20 @@ static void terminal_search_game() {
         return;
     }
 
-    char line_buffer[512]; // Buffer para ler a linha inteira
+    char line_buffer[512]; 
     char game_name[50];
     bool found = false;
 
     printf("Resultados da busca:\n");
     while (fgets(line_buffer, sizeof(line_buffer), list_file)) {
-        // Copia a linha para extrair o nome sem destruir o buffer
+        // Usamos um buffer temporário para não destruir a linha original com o strtok
         char temp_line[512];
         strcpy(temp_line, line_buffer);
         
         char *token = strtok(temp_line, ";");
         if (token != NULL) {
             strcpy(game_name, token);
-            // strcasestr?
+            
             if (strstr(game_name, search_name) != NULL) {
                 printf("Encontrado: %s", line_buffer);
                 found = true;
@@ -243,11 +277,14 @@ static void terminal_search_game() {
     fclose(list_file);
 }
 
-//Função auxiliar para reescrever arquivos
+/**
+ * Função auxiliar robusta para modificar ou excluir registros.
+ * Ela cria arquivos temporários, copia os dados (alterando ou pulando a linha alvo)
+ * e depois substitui os arquivos originais.
+ * * Se new_data for NULL, a função age como "Excluir".
+ * Se new_data tiver conteúdo, a função age como "Alterar".
+ */
 static int rewrite_files(const char* target_name, const Game* new_data) {
-    // new_data == NULL significa EXCLUIR
-    // new_data != NULL significa ALTERAR
-    
     FILE *list_in = fopen("list.csv", "r");
     FILE *phrases_in = fopen("frases.csv", "r");
     FILE *list_out = fopen("list.tmp", "w");
@@ -259,39 +296,38 @@ static int rewrite_files(const char* target_name, const Game* new_data) {
         if(phrases_in) fclose(phrases_in);
         if(list_out) fclose(list_out);
         if(phrases_out) fclose(phrases_out);
-        return 0; // Falha
+        return 0;
     }
 
     char line_buffer[512], phrase_buffer[256];
     char game_name[50];
     int found = 0;
 
-    // Itera pelos dois arquivos linha por linha
+    // Processa linha a linha mantendo a sincronia entre os dois arquivos
     while (fgets(line_buffer, sizeof(line_buffer), list_in) &&
            fgets(phrase_buffer, sizeof(phrase_buffer), phrases_in)) 
     {
-        // Extrai o nome da linha atual
         char temp_line[512];
         strcpy(temp_line, line_buffer);
         char *token = strtok(temp_line, ";");
         strcpy(game_name, token ? token : "");
 
-        // Compara com o nome alvo
+        // Se encontrou o jogo alvo
         if (strcmp(game_name, target_name) == 0) {
             found = 1;
             if (new_data != NULL) {
-                // MODO ALTERAR: Escreve os *novos* dados
+                // Reescreve com os dados novos
                 fprintf(list_out, "%s;%d;%s;%s;%s;%s;%s;\n",
                         new_data->name, new_data->year, new_data->origin,
-                        new_data->genre[0], // Salva o formato original (antes do split)
+                        new_data->genre[0], 
                         new_data->theme,
                         new_data->gamemode[0],
                         new_data->platform[0]);
                 fprintf(phrases_out, "%s\n", new_data->phrase);
             }
-            // MODO EXCLUIR: Não faz nada (pula a escrita)
+            // Se for NULL (excluir), simplesmente não escreve nada no arquivo de saída
         } else {
-            // Nome não bateu, apenas reescreve a linha original
+            // Mantém os dados originais
             fputs(line_buffer, list_out);
             fputs(phrase_buffer, phrases_out);
         }
@@ -303,13 +339,11 @@ static int rewrite_files(const char* target_name, const Game* new_data) {
     fclose(phrases_out);
 
     if (found) {
-        // Substitui os arquivos antigos pelos novos
         remove("list.csv");
         remove("frases.csv");
         rename("list.tmp", "list.csv");
         rename("phrases.tmp", "frases.csv");
     } else {
-        // Se não achou, apaga os temporários
         remove("list.tmp");
         remove("phrases.tmp");
     }
@@ -336,7 +370,7 @@ static void terminal_modify_game() {
     printf("Digite o nome EXATO do jogo a alterar: ");
     get_user_string(name_to_modify, 50);
 
-    Game new_data; // Struct temporária para os novos dados
+    Game new_data;
 
     printf("Digite os NOVOS dados para '%s'\n", name_to_modify);
     
@@ -366,7 +400,6 @@ static void terminal_modify_game() {
 }
 
 void initialize_list() {
-    // Preparar variáiveis globais
     games = NULL;
     game_amount = 0;
     search_results = NULL;
@@ -374,6 +407,10 @@ void initialize_list() {
     attempts = NULL;
 }
 
+/**
+ * Menu principal do modo terminal.
+ * Permite gerenciar o banco de dados antes de iniciar o loop gráfico do jogo.
+ */
 void update_list() {
     int choice = 0;
 
@@ -389,9 +426,9 @@ void update_list() {
         printf("Escolha uma opcao: ");
 
         if (scanf("%d", &choice) != 1) {
-            choice = -1; // Escolha inválida
+            choice = -1;
         }
-        clear_stdin_buffer(); // Limpa o \n ou entrada inválida
+        clear_stdin_buffer(); 
 
         switch(choice) {
             case 1:
@@ -411,17 +448,22 @@ void update_list() {
                 break;
             case 0:
                 printf("Iniciando o jogo...\n");
-                return; // Sai da função e continua para o InitWindow
+                return;
             default:
                 printf("Opcao invalida. Tente novamente.\n");
                 break;
         }
         
         printf("\nPressione ENTER para continuar...");
-        getchar(); // Pausa
+        getchar();
     }
 }
 
+/**
+ * Carrega todos os dados dos arquivos CSV para a memória.
+ * Aloca dinamicamente os arrays de jogos e de resultados de busca, 
+ * além de carregar as texturas (bandeiras, logos).
+ */
 void load_list() {
     FILE *list_file = fopen("list.csv", "r");
     if (list_file == NULL){
@@ -429,10 +471,10 @@ void load_list() {
         exit(1);
     }
     
-    game_amount = 0; // Reseta a contagem
+    game_amount = 0;
     char buffer[512];
+    // Primeiro passamos pelo arquivo apenas para contar quantos jogos existem
     while (fgets(buffer, sizeof(buffer), list_file)) {
-        // Simplesmente conta as linhas
         game_amount++;
     }
     fclose(list_file);
@@ -444,7 +486,6 @@ void load_list() {
 
     printf("Total de %d jogos encontrados. Carregando...\n", game_amount);
 
-    // Alocar memória dinamicamente
     games = (Game*)calloc(game_amount, sizeof(Game));
     search_results = (Game*)calloc(game_amount, sizeof(Game));
     
@@ -452,7 +493,7 @@ void load_list() {
         perror("Falha ao alocar memoria para a lista de jogos");
         exit(1);
     }
-    search_capacity = game_amount; // Define a capacidade de busca
+    search_capacity = game_amount;
 
     list_file = fopen("list.csv", "r");
     if (list_file == NULL) {
@@ -475,6 +516,7 @@ void load_list() {
             break; 
         }
         
+        // Faz backup das strings originais antes de dividir
         char original_genre[50];
         char original_gamemode[50];
         char original_platform[50];
@@ -487,10 +529,12 @@ void load_list() {
         split_string(games[i].gamemode);
         split_string(games[i].platform);
 
+        // Restaura a string original na primeira posição para referência futura
         strcpy(games[i].genre[0], original_genre);
         strcpy(games[i].gamemode[0], original_gamemode);
         strcpy(games[i].platform[0], original_platform);
 
+        // Carrega imagens. Se não achar a bandeira específica, usa uma padrão.
         Image flag_image = LoadImage(TextFormat("sources/flags/%s.png", games[i].origin));
         if (flag_image.data == NULL) flag_image = LoadImage("sources/flags/flag.png");
         games[i].flag_texture = LoadTextureFromImage(flag_image);
@@ -505,7 +549,7 @@ void load_list() {
     }
     fclose(list_file);
 
-    // Frases
+    // Carregamento das frases (dicas)
     FILE *phrases_file = fopen("frases.csv", "r");
     if (phrases_file == NULL){
         perror("PHRASE LIST NOT LOADED\n");
@@ -540,19 +584,27 @@ void load_texture() {
     UnloadImage(image);
 }
 
+/**
+ * Seleciona aleatoriamente um jogo da lista para ser o desafio da rodada.
+ */
 void load_games() {
     if (game_amount <= 0) {
         printf("ERRO FATAL: load_games chamada sem jogos carregados!\n");
         exit(1);
     }
-    int correct_game_index = (rand() % (game_amount)); // MODIFICADO
+    int correct_game_index = (rand() % (game_amount));
     correct_game = games[correct_game_index];
     
+    // Prepara os dados do jogo correto para facilitar comparações
     split_string(correct_game.genre);
     split_string(correct_game.gamemode);
     split_string(correct_game.platform);
 }
 
+/**
+ * Reseta todas as variáveis de estado do gameplay para iniciar uma nova partida.
+ * Inclui resets de input, câmera, shader de blur e contadores.
+ */
 void init_gameplay() {
     win = false;
     lose = false;
@@ -589,6 +641,10 @@ void init_gameplay() {
     game_camera.zoom = 1.0f;
 }
 
+/**
+ * Função principal de atualização do jogo (Game Loop).
+ * Processa inputs, atualiza a câmera, gerencia a barra de busca e valida tentativas.
+ */
 void update_gameplay(void) {
     if (IsKeyPressed(KEY_ESCAPE)) {
         game_finished = true;
@@ -600,6 +656,7 @@ void update_gameplay(void) {
     }
     if (shaking) game_camera.offset = Vector2Add((Vector2){base_camera_offset.x, game_camera.offset.y}, shake_offset());
 
+    // Renderiza a capa do jogo borrada para usar como dica visual
     BeginTextureMode(blurred_object_rt);        
         ClearBackground(BLANK);
         BeginShaderMode(blur_shader);   
@@ -607,6 +664,7 @@ void update_gameplay(void) {
         EndShaderMode();            
     EndTextureMode();
 
+    // Navegação na lista de sugestões
     if (IsKeyPressed(KEY_DOWN)) {
         selected_search_index++;
         if (selected_search_index > max_search_results) selected_search_index = 0;
@@ -624,6 +682,7 @@ void update_gameplay(void) {
     }
     if (selected_attempt_index <= 0) selected_attempt_index = 0;
 
+    // Captura de texto do usuário
     int key_pressed = GetCharPressed();
     if ((key_pressed >= 32) && (key_pressed <= 125) && input_index < 50) {
         user_input[input_index] = (char)key_pressed;
@@ -643,6 +702,7 @@ void update_gameplay(void) {
         selected_search_index = 0;
     }
 
+    // Lógica de busca e autocompletar
     int j = 0;
     max_search_results = -1;
 
@@ -650,6 +710,7 @@ void update_gameplay(void) {
         for (int l = 0; l < game_amount; l++) { 
             if (strlen(games[l].name) == 0) continue;
 
+            // Cria substring do nome do jogo do tamanho do input para comparar
             char temp_substr[strlen(user_input)+1];
             for (int k = 0; k <= (int)strlen(user_input); k++) {
                 temp_substr[k] = games[l].name[k];
@@ -657,6 +718,7 @@ void update_gameplay(void) {
             temp_substr[strlen(user_input)] = '\0';
 
             if (strcasecmp(user_input, temp_substr) == 0) {
+                // Evita mostrar jogos que já foram tentados
                 bool already_attempted = false;
                 for (int i = 0; i <= attempt_count; i++) {
                     if (strcmp(games[l].name, attempts[i].name) == 0) {
@@ -669,14 +731,13 @@ void update_gameplay(void) {
                     search_results[j] = games[l];
                     max_search_results = j;
                     j++;
-                    // MODIFICADO: Compara com a capacidade dinâmica
                     if (j >= search_capacity) break; 
                 }
             }
         }
     }
 
-    // Lógica - Tentativa
+    // Confirmação da tentativa (Enter)
     if (IsKeyPressed(KEY_ENTER) && max_search_results >= 0 && strcmp(search_results[selected_search_index].name, "") != 0) {
         attempt_count++;
         selected_attempt_index = attempt_count;
@@ -690,27 +751,24 @@ void update_gameplay(void) {
         
         attempts[attempt_count] = search_results[selected_search_index];
         
+        // Processa os dados da tentativa para renderização
         split_string(attempts[attempt_count].genre);
         split_string(attempts[attempt_count].gamemode);
         split_string(attempts[attempt_count].platform);
 
+        // Verifica vitória ou aplica penalidade (shake)
         if (strcmp(attempts[attempt_count].name, correct_game.name) != 0) shake(3, 0.4);
         else win = true;
 
+        // Limpa o input
         strcpy(user_input, " ");
         input_index = 0;
-
-        // Limpa os resultados da busca (para a UI sumir)
-        // MODIFICADO: Este loop não é estritamente necessário se
-        // 'max_search_results' for -1, mas vamos mantê-lo dinâmico
-        // for (int i = 0; i < search_capacity; i++) strcpy(search_results[i].name, "");
-        // (Removido para otimizar, já que 'max_search_results = -1' resolve)
         
         max_search_results = -1;
         selected_search_index = 0;
     }
 
-    // Lógica - Câmera Scroll
+    // Controle da câmera (Scroll do mouse)
     game_camera.offset.y += (int)(GetMouseWheelMove()*35);
     if (game_camera.offset.y >= screen_height/2-2) {
         game_camera.offset.y = screen_height/2;
@@ -724,11 +782,17 @@ Camera2D get_gameplay_camera(void) {
     return game_camera;
 }
 
+/**
+ * Renderiza o "mundo" do jogo, ou seja, a lista de tentativas passadas.
+ * Compara cada atributo (ano, gênero, plataforma) com o jogo correto
+ * e desenha as dicas coloridas (Verde = Certo, Vermelho = Errado, Amarelo = Parcial).
+ */
 void draw_gameplay_world(void) {
     if (attempt_count != -1 ) {
         for (int i = 0; i < attempt_count+1; i++){
             Game selected_game = attempts[attempt_count-i];
             
+            // Formata o nome para quebrar linhas se for muito longo
             char name_to_draw[50];
             strcpy(name_to_draw, selected_game.name);
             if (strlen(name_to_draw) >= 10) {
@@ -745,29 +809,29 @@ void draw_gameplay_world(void) {
             DrawTexture(selected_game.logo_texture, 20, screen_height - 180 +  i*185, WHITE); 
             int x_offset = 20;
 
-            //YEAR
+            // ANO: Mostra seta para cima/baixo se o ano for maior/menor
             DrawText("YEAR", x_offset, screen_height - 110 + i*185, 15, GRAY);
             if (selected_game.year == correct_game.year) DrawText(TextFormat("%d",selected_game.year), 20, screen_height - 80 + i*185, 30, GREEN);
             else {
                 DrawText(TextFormat("%d",selected_game.year), x_offset, screen_height - 80 + i*185, 30, RED);
-                DrawTexturePro(arrow_texture, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(TextFormat("%d",selected_game.year), 30) + 35, screen_height - 67 + i*185, 15, 14}, (Vector2){7,7}, (selected_game.year > correct_game.year ? 180 : 0), WHITE);   
+                DrawTexturePro(arrow_texture, (Rectangle){0, 0, 15, 14}, (Rectangle){MeasureText(TextFormat("%d",selected_game.year), 30) + 35, screen_height - 67 + i*185, 15, 14}, (Vector2){7,7}, (selected_game.year > correct_game.year ? 180 : 0), WHITE);    
             }
             x_offset += MeasureText(TextFormat("%d",selected_game.year), 30) + 33;
 
-            //ORIGIN
+            // ORIGEM: Desenha a bandeira e moldura colorida
             DrawText("ORIGIN", x_offset, screen_height - 110 + i*185, 15, GRAY);
             DrawTexturePro(selected_game.flag_texture, (Rectangle){0, 0, (float)selected_game.flag_texture.width, (float)selected_game.flag_texture.height}, (Rectangle){x_offset, screen_height - 80 + i*185, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2}, (Vector2){0,0}, 0, WHITE);
             DrawRectangleLinesEx((Rectangle){x_offset,  screen_height - 80 + i*185, selected_game.flag_texture.width*2, selected_game.flag_texture.height*2 }, 2.5, (strcmp(selected_game.origin, correct_game.origin) == 0) ? GREEN : RED);
             x_offset += selected_game.flag_texture.width*2 + 20;
 
-            //GENRE
+            // GÊNERO
             DrawText("GENRE", x_offset, screen_height - 110 + i*185, 15, GRAY);
             int genre_equality = check_equality(correct_game.genre, selected_game.genre);
             if (genre_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  screen_height - 80 + i*185, 30, GREEN);
             else DrawText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), x_offset,  screen_height - 80 + i*185, 30, (genre_equality == 0) ? RED : YELLOW);
             x_offset += MeasureText(TextFormat("%s\n%s", selected_game.genre[0], selected_game.genre[1]), 30) + 20;
 
-            //THEME
+            // TEMA
             DrawText("THEME", x_offset, screen_height - 110 + i*185, 15, GRAY);
             char theme_to_draw[50];
             strcpy(theme_to_draw, selected_game.theme);
@@ -778,14 +842,14 @@ void draw_gameplay_world(void) {
             x_offset += MeasureText(theme_to_draw, 30) + 20;
 
 
-            //GAMEMODE
+            // MODO DE JOGO
             DrawText("GAMEMODE", x_offset, screen_height - 110 + i*185, 15, GRAY);
             int gamemode_equality = check_equality(correct_game.gamemode, selected_game.gamemode);
             if (gamemode_equality == 1) DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  screen_height - 80 + i*185, 30, GREEN);
             else DrawText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), x_offset,  screen_height - 80 + i*185, 30, (gamemode_equality == 0) ? RED : YELLOW);
             x_offset += MeasureText(TextFormat("%s\n%s", selected_game.gamemode[0], selected_game.gamemode[1]), 30) + 20;
 
-            //PLATFORM
+            // PLATAFORMA
             int platform_equality = check_equality(correct_game.platform, selected_game.platform);
             int platform_count = 0;
             for (int k = 0; k < 3; k++) if (strlen(selected_game.platform[k]) > 0) platform_count++;
@@ -797,7 +861,7 @@ void draw_gameplay_world(void) {
         }
     }
 
-    //Hints
+    // Renderiza as dicas (frase, imagem borrada, imagem nítida)
     if (hint_1) {
         DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 500, 20, YELLOW);
     }
@@ -810,17 +874,23 @@ void draw_gameplay_world(void) {
         DrawTexture(cover_texture, screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, WHITE);
     }
 
-    DrawRectangle(screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, BLACK);
+    DrawRectangle(screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, Fade(BLACK, 0.5f));
 }
 
+/**
+ * Renderiza a interface de usuário (UI) fixa na tela.
+ * Inclui barra de pesquisa, lista de sugestões e os corações de vida.
+ */
 void draw_gameplay_ui(void) {
     if (strcmp(user_input, "") != 0 && strcmp(user_input, " ") != 0) DrawRectangle(screen_width/2-MeasureText(user_input, 30)/2-5, 30/2-5, MeasureText(user_input, 30)+10, 30+10, LIGHTGRAY);
     DrawText(user_input, screen_width/2-MeasureText(user_input, 30)/2, 30/2, 30, BLACK);
     
+    // Desenha a lista drop-down com as sugestões de pesquisa
     for (int j = 0; j < 5; j++) {
         char name[50];
         if (max_search_results >= 0) {
             int search_idx = j;
+            // Lógica de scroll na lista de sugestões
             if (max_search_results >= 5 && selected_search_index >= 4) {
                  search_idx = j + (selected_search_index - 4);
             }
@@ -840,18 +910,19 @@ void draw_gameplay_ui(void) {
         }
     }
 
-    //Lives
+    // Calcula e desenha as vidas restantes (Corações)
     int lives = 20 - attempt_count - 1;
 
     for (int i = 0; i < (int)ceil((double)lives / 2); i++) {
         int sprite = 0;
         int hint_sprite = 0;
-        if (i == lives / 2 && lives % 2 != 0) sprite = 1;
-        if (i == 7 || i == 3 || i == 0 ) hint_sprite = 2;
+        if (i == lives / 2 && lives % 2 != 0) sprite = 1; // Meio coração
+        if (i == 7 || i == 3 || i == 0 ) hint_sprite = 2; // Coração dourado/especial (indicador de dica)
         sprite += hint_sprite;
         DrawTexturePro(heart_texture, (Rectangle){16.0f * sprite, 16.0f * sprite, 16, 16}, (Rectangle){4 + 34.0f * i, 4, 32, 32}, (Vector2){0,0}, 0, WHITE);
     }
 
+    // Ativa as dicas conforme a vida diminui
     if (lives <= 15) hint_1 = true;
     if (lives <= 7) hint_2 = true;
     if (lives <= 1) hint_3 = true;
@@ -862,6 +933,9 @@ bool is_gameplay_finished(void) {
     return game_finished;
 }
 
+/**
+ * Limpeza de recursos da rodada atual (texturas, shaders e memória de tentativas).
+ */
 void unload_gameplay_round(void) {
     UnloadRenderTexture(blurred_object_rt);
     UnloadShader(blur_shader);
@@ -875,8 +949,11 @@ void unload_gameplay_round(void) {
     }
 }
 
+/**
+ * Limpeza global de recursos ao fechar o jogo.
+ * Libera a memória da lista principal de jogos e texturas carregadas.
+ */
 void unload_global_assets(void) {
-    // Limpar as texturas
     for (int i = 0; i < game_amount; i++) {
         if (games[i].flag_texture.id > 0) {
             UnloadTexture(games[i].flag_texture);
@@ -886,7 +963,6 @@ void unload_global_assets(void) {
         }
     }
 
-    // Liberar memória dinâmica
     if (games != NULL) {
         free(games);
         games = NULL;
@@ -897,7 +973,6 @@ void unload_global_assets(void) {
         search_results = NULL;
     }
 
-    // Resetar contadores
     game_amount = 0;
     search_capacity = 0;
 }
