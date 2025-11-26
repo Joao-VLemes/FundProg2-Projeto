@@ -3,6 +3,7 @@
 
 #include "raylib.h"
 
+// Struct dos Jogos
 typedef struct
 {
     char name[50];
@@ -18,14 +19,14 @@ typedef struct
 } Game;
 
 
-// --- Variáveis Globais Públicas ---
+// Variáveis Globais Públicas
 extern int screen_width;
 extern int screen_height;
 extern bool win;
 extern bool lose;
 
 
-// --- Funções Públicas ---
+// Funções Públicas
 
 // Funções de inicialização
 void load_list(void);        // Chamada 1x no início do programa

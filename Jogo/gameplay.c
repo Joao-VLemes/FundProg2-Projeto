@@ -361,6 +361,7 @@ static int rewrite_files(const char* target_name, const Game* new_data) {
     return found;
 }
 
+// Função para excluir os dados do jogo que desejar
 static void terminal_delete_game() {
     char name_to_delete[50];
     printf("Excluir jogo:\n");
@@ -374,6 +375,7 @@ static void terminal_delete_game() {
     }
 }
 
+// Função para modificar os dados do jogo que desejar
 static void terminal_modify_game() {
     char name_to_modify[50];
     printf("Alterar jogo:\n");
@@ -580,6 +582,10 @@ void load_list() {
 #pragma endregion
 #pragma region Configurações
 
+#pragma endregion
+#pragma region Configurações
+
+// Função para carregar as texturas e as imagens auxiliares, como corações, bandeiras etc
 void load_texture() {
     Image arrow_image = LoadImage("sources/flecha.png");
     arrow_texture = LoadTextureFromImage(arrow_image);
