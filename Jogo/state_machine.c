@@ -5,7 +5,10 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <math.h> // Necessário para sinf()
 #include "gameplay.h"
+
+// --- DEFINIÇÕES E ENUMS ---
 
 typedef enum {
     BUTTON_START,
@@ -21,10 +24,16 @@ typedef enum {
     SCREEN_VICTORY
 } GameScreen;
 
+// Enum para o Fade de Áudio
+typedef enum {
+    MUSIC_PLAYING,
+    MUSIC_FADING_OUT,
+    MUSIC_FADING_IN
+} MusicState;
 
 typedef struct {
     Texture2D sprite;
-    Rectangle sourceRec; // <--- NOVO: Controla qual parte da imagem desenhar
+    Rectangle sourceRec;
     Rectangle area;
     Vector2 position;
     float scale_x;
@@ -39,17 +48,64 @@ typedef struct {
     const char* text;
 } Button;
 
-// Variável global para a textura do botão
+// --- VARIÁVEIS GLOBAIS ---
+
+// Texturas
 static Texture2D tex_button_atlas = {0};
 static Texture2D tex_game_logo = {0};
 
+// --- SISTEMA DE MÚSICA COM FADE ---
+static Music music_main = {0};
+static Music music_win  = {0};
+static Music music_lose = {0};
+
+static Music* current_music = NULL;
+static Music* next_music = NULL;    
+
+static MusicState music_state = MUSIC_PLAYING;
+static float master_volume = 0.5f; 
+static float current_volume = 0.0f;
+static float audio_fade_speed = 0.02f;   
+
+// --- SISTEMA DE TRANSIÇÃO (SLIDE + FADE) ---
+static float transition_offset = 0.0f;
+static float fade_overlay_alpha = 0.0f; // Opacidade do retângulo preto
+static int needs_to_load_gameplay = 0;  // Flag para carregar no meio da transição
+
+// Animação do Logo
+static float mouse_x = 0;
+static float mouse_y = 0;
+static float logo_x = 0;
+static float logo_y = 0;
+static float logo_time = 0;
+static float logo_angle = 0;
+
+// Estado do Jogo
+static Button buttons[3] = {0};
+static GameScreen current_screen = SCREEN_MAIN;
+static GameScreen previous_screen = SCREEN_MAIN; // Restaurado para o slide
+
+// Background texture
+static Texture2D tex_background = {0};
+
+void load_background_texture(void) {
+    if (tex_background.id == 0) {
+        tex_background = LoadTexture("sources/background.png");
+    }
+}
+
+void unload_background_texture(void) {
+    if (tex_background.id != 0) {
+        UnloadTexture(tex_background);
+        tex_background = (Texture2D){0};
+    }
+}
+
+// --- FUNÇÕES DE BOTÃO ---
+
 void press_button(Button* button) {
-    
     button->scale_x = Lerp(button->scale_x, 0.9f, 0.2f);
     button->scale_y = Lerp(button->scale_y, 0.9f, 0.2f);
-
-    // <--- LÓGICA DO ATLAS HORIZONTAL: Frame 1 (Pressionado)
-    // Move o recorte X para a metade direita da imagem
     button->sourceRec.x = button->sprite.width / 2.0f;
 }
 
@@ -68,24 +124,16 @@ void reset_button_state(Button* button) {
     button->scale_y = Lerp(button->scale_y, 1.0f, 0.2f);
     button->current_color = button->color;
     button->is_pressed = 0;
-
-    // <--- LÓGICA DO ATLAS HORIZONTAL: Frame 0 (Solto)
-    // Move o recorte X para o início (esquerda)
     button->sourceRec.x = 0.0f;
 }
 
 void draw_button(Button* button) {
     float _width = button->area.width * button->scale_x;
     float _height = button->area.height * button->scale_y;
-    float _x = button->area.x - (_width - button->area.width) / 2.0f;
-    float _y = button->area.y - (_height - button->area.height) / 2.0f;
+    float _x = button->area.x - (_width - button->area.width) / 2.0f + mouse_x;
+    float _y = button->area.y - (_height - button->area.height) / 2.0f + mouse_y;
 
-    // <--- DESENHO COM TEXTURA (Substitui DrawRectangle)
-    // sourceRec: O recorte do atlas (frame atual)
-    // destRec: Onde desenhar na tela (com escala)
     Rectangle destRec = { _x, _y, _width, _height };
-    
-    // O 'origin' é (0,0) pois já calculamos o centro com _x e _y
     DrawTexturePro(button->sprite, button->sourceRec, destRec, (Vector2){0,0}, 0.0f, button->current_color);
 
     float spacing = 2.0f;
@@ -95,70 +143,41 @@ void draw_button(Button* button) {
     DrawTextEx(GetFontDefault(), button->text, (Vector2){(int)textX, (int)textY}, 20, spacing, BLACK);
 }
 
-// Verifica a interação com o botão e retorna true se clicado
 bool check_button_interaction(Button* button) {
-    Vector2 mousePos = GetMousePosition();
-    
-    if (CheckCollisionPointRec(mousePos, button->area)) {
-        hover_button(button); // Aplica cor de hover e escala inicial
+    // Se estiver em transição (slide), bloqueia clique
+    if (current_screen != previous_screen) return false;
 
-        // --- CORREÇÃO AQUI ---
-        // Use IsMouseButtonDown (Enquanto segura) em vez de Pressed.
-        // Isso mantém a sprite trocada e o tamanho reduzido enquanto o dedo está no mouse.
+    Vector2 mousePos = GetMousePosition();
+    if (CheckCollisionPointRec(mousePos, button->area)) {
+        hover_button(button); 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             press_button(button); 
         }
-
-        // Sua lógica de confirmar a ação ao SOLTAR o botão
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
-            // button->is_pressed = 1; // Opcional, já que vamos mudar de tela logo em seguida
             return true;
         }
     }
     return 0;
 }
 
-// --- Variáveis Globais do Menu ---
-static Music music = {0};
-static int music_loaded = 0;
-
-static float logo_x = 0;
-static float logo_y = 0;
-static float logo_time = 0;
-static float logo_angle = 0;
-
-static float transition_offset = 0.0f;
-static Button buttons[3] = {0};
-static GameScreen current_screen = SCREEN_MAIN;
-static GameScreen previous_screen = SCREEN_MAIN;
-// Não precisamos mais da flag 'screen_to_unload'
-
 void initialize_buttons() {
-// <--- CARREGAR O ATLAS DO BOTAO
     if (tex_button_atlas.id == 0) {
         tex_button_atlas = LoadTexture("sources/botao.png");
     }
 
     for (int i = 0; i < 3; i++) {
         buttons[i].sprite = tex_button_atlas;
-        
-        // <--- CONFIGURA RECORTE INICIAL (Horizontal)
-        // Largura = Metade da textura total
-        // Altura = Altura total da textura
         buttons[i].sourceRec = (Rectangle){ 0.0f, 0.0f, (float)tex_button_atlas.width / 2.0f, (float)tex_button_atlas.height };
-
         buttons[i].area = (Rectangle){
             (screen_width / 2) - 90.0f,
             (screen_height / 2) - 100.0f + i * 100.0f,
             180.0f,
             64.0f
         };
-
         buttons[i].position = (Vector2){
             buttons[i].area.x + buttons[i].area.width / 2.0f,
             buttons[i].area.y + buttons[i].area.height / 2.0f
         };
-
         buttons[i].scale_x = 1.0f;
         buttons[i].scale_y = 1.0f;
         buttons[i].color = LIGHTGRAY;
@@ -173,46 +192,103 @@ void initialize_buttons() {
     buttons[BUTTON_EXIT].text = "Exit";
 }
 
-// Atualiza a lógica do jogo (máquina de estados)
+// --- FUNÇÕES DE MÚSICA COM FADE ---
+
+void switch_music_track(Music* requested_track) {
+    if (current_music == requested_track && music_state != MUSIC_FADING_OUT) return;
+    if (next_music == requested_track) return;
+
+    next_music = requested_track;
+
+    if (current_music != NULL) {
+        music_state = MUSIC_FADING_OUT;
+    } else {
+        current_music = next_music;
+        next_music = NULL;
+        if (current_music != NULL) PlayMusicStream(*current_music);
+        current_volume = 0.0f;
+        music_state = MUSIC_FADING_IN;
+    }
+}
+
+void update_music_system() {
+    if (music_state == MUSIC_FADING_OUT) {
+        current_volume -= audio_fade_speed;
+        
+        if (current_volume <= 0.0f) {
+            current_volume = 0.0f;
+            if (current_music != NULL) StopMusicStream(*current_music);
+            
+            current_music = next_music;
+            next_music = NULL;
+            
+            if (current_music != NULL) {
+                PlayMusicStream(*current_music);
+                music_state = MUSIC_FADING_IN;
+            } else {
+                music_state = MUSIC_PLAYING; 
+            }
+        }
+    }
+    else if (music_state == MUSIC_FADING_IN) {
+        current_volume += audio_fade_speed;
+        
+        if (current_volume >= master_volume) {
+            current_volume = master_volume;
+            music_state = MUSIC_PLAYING;
+        }
+    }
+
+    if (current_music != NULL) {
+        SetMusicVolume(*current_music, current_volume);
+        UpdateMusicStream(*current_music);
+    }
+}
+
+// --- FUNÇÃO AUXILIAR DE INÍCIO DE TRANSIÇÃO ---
+void start_transition_to(GameScreen target_screen) {
+    previous_screen = current_screen;
+    current_screen = target_screen;
+    transition_offset = 0.0f; // Reinicia o slide
+    fade_overlay_alpha = 0.0f; // Reinicia o fade
+}
+
+
+// --- LÓGICA DO JOGO ---
+
 void update_game_logic() {
-    logo_time += 0.05f;
-    logo_x = cos(logo_time/2)*15;
-    logo_y = sin(logo_time)*10;
-    logo_angle = cos(logo_time/2)*2.5;
-
-
-    // Atualiza a música independentemente da tela
-    //UpdateMusicStream(music);
+    mouse_x = (screen_width / 2 - GetMouseX()) / 30;
+    mouse_y = (screen_height / 2 - GetMouseY()) / 30;
     
-    // A lógica de update só roda se NÃO estivermos em transição
+    logo_time += 0.05f;
+    logo_x = cos(logo_time/2) * 15 + mouse_x * 1.5f;
+    logo_y = sin(logo_time) * 10 + mouse_y * 1.5f;
+    logo_angle = cos(logo_time/2) * 2.5;
+    
+    // Atualiza sistemas de Fade de Áudio
+    update_music_system();
+    
+    // A lógica principal do jogo só roda se NÃO estivermos em transição
+    // (Para evitar interações enquanto a tela desliza)
     if (current_screen == previous_screen) {
         switch (current_screen) {
             case SCREEN_MAIN: {
-                
+                switch_music_track(&music_main);
 
                 for (int i = 0; i < 3; i++) {
                     reset_button_state(&buttons[i]);
                     if (check_button_interaction(&buttons[i])) {
-                        transition_offset = 0; // Prepara para a transição
-                        previous_screen = current_screen;
-
+                        
                         if (i == BUTTON_START) {
-                            // Limpa os assets da rodada anterior ANTES de carregar os novos
-                            unload_gameplay_round(); 
+                            // Marca para carregar os assets no meio do slide
+                            needs_to_load_gameplay = 1; 
+                            start_transition_to(SCREEN_GAMEPLAY);
                             
-                            // Prepara todos os assets para a próxima rodada
-                            
-                            load_games(); 
-                            load_texture();
-                            init_gameplay(); // Prepara o estado do gameplay (shader, camera)
-                            
-                            current_screen = SCREEN_GAMEPLAY;
-                            StopMusicStream(music);
-                            music_loaded = 0;
                         } else if (i == BUTTON_HOW_TO_PLAY) {
-                            current_screen = SCREEN_HOW_TO_PLAY;
+                            start_transition_to(SCREEN_HOW_TO_PLAY);
+
                         } else if (i == BUTTON_EXIT) {
-                            CloseWindow(); // O loop principal no main() vai parar
+                            CloseWindow(); 
                         }
                     }
                 }
@@ -220,80 +296,52 @@ void update_game_logic() {
 
             case SCREEN_HOW_TO_PLAY: {
                 if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    transition_offset = 0;
-                    previous_screen = current_screen;
-                    current_screen = SCREEN_MAIN;
+                    start_transition_to(SCREEN_MAIN);
                 }
             } break;
 
             case SCREEN_GAMEPLAY: {
-                // Atualiza um frame do jogo
                 update_gameplay();
 
-                // Verifica se o jogo terminou (por vitória ou ESC)
                 if (is_gameplay_finished()) {
-                    // Apenas sinaliza a mudança de tela.
-                    // O 'unload' acontecerá na próxima vez que 'Play' for clicado.
-                    
-                    transition_offset = 0;
-                    previous_screen = current_screen;
-                    
-                    // Decide para qual tela ir
                     if (win) {
-                        current_screen = SCREEN_VICTORY;
+                        switch_music_track(&music_win);
+                        start_transition_to(SCREEN_VICTORY);
                     } else if (lose) {
-                        current_screen = SCREEN_LOSE;
-                    } else{
-                        current_screen = SCREEN_MAIN;
-                    }
-                    
-                    // Recarrega e toca a música do menu
-                    if (!music_loaded) {
-                        music = LoadMusicStream("musicas/Project_1.ogg");
-                        PlayMusicStream(music);
-                        music_loaded = 1;
+                        switch_music_track(&music_lose); 
+                        start_transition_to(SCREEN_LOSE);
+                    } else {
+                        switch_music_track(&music_main);
+                        start_transition_to(SCREEN_MAIN);
                     }
                 }
             } break;
 
-            // Update da tela de vitória
             case SCREEN_VICTORY: {
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    transition_offset = 0;
-                    previous_screen = current_screen;
-                    current_screen = SCREEN_MAIN;
+                    start_transition_to(SCREEN_MAIN);
                 }
             } break;
 
             case SCREEN_LOSE: {
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    transition_offset = 0;
-                    previous_screen = current_screen;
-                    current_screen = SCREEN_MAIN;
+                    start_transition_to(SCREEN_MAIN);
                 }
             } break;
         }
     }
-
-    // Gerencia a música do menu
-    if (current_screen == SCREEN_MAIN && !music_loaded) {
-        music = LoadMusicStream("musicas/Project_1.ogg");
-        PlayMusicStream(music);
-        music_loaded = 1;
-    }
 }
 
-//
-// *** FUNÇÃO DE DESENHO MODIFICADA ***
-//
-// Agora recebe a câmera de transição para aplicar o offset
+// --- DESENHO DA TELA ---
+// Agora recebe a câmera de transição para manter o efeito de slide
 void draw_screen(GameScreen screen, Camera2D transition_cam) {
+    
+    // Desenha o background sem afetar pela câmera (opcional, ou pode por dentro do Mode2D)
+    DrawTexture(tex_background, mouse_x / 2, mouse_y / 2, WHITE);
     
     switch (screen) {
          case SCREEN_MAIN: {
-            BeginMode2D(transition_cam); // Inicia modo 2D com a câmera de transição
-                //DrawText("GUESS THE GAME", screen_width / 2 - MeasureText("GUESS THE GAME", 40) / 2, 100, 40, WHITE);
-
+            BeginMode2D(transition_cam);
                 {
                     float logoW = (float)tex_game_logo.width;
                     float logoH = (float)tex_game_logo.height;
@@ -301,46 +349,31 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
                     float posY = 100.0f + logo_y;
                     Rectangle src = { 0.0f, 0.0f, logoW, logoH };
                     Rectangle dest = { posX, posY, logoW, logoH };
-                    Vector2 origin = { logoW/2.0f, logoH/2.0f }; // center of the texture
+                    Vector2 origin = { logoW/2.0f, logoH/2.0f };
                     DrawTexturePro(tex_game_logo, src, dest, origin, logo_angle, WHITE);
                 }
                 for (int i = 0; i < 3; i++) {
                     draw_button(buttons + i);
                 }
-            EndMode2D(); // Termina modo 2D
+            EndMode2D();
         } break;
 
         case SCREEN_HOW_TO_PLAY: {
             BeginMode2D(transition_cam);
-            // Você começa digitando o nome de qualquer Campeão do LoL.
-
-            // Após cada palpite, o jogo fornece dicas sobre o Campeão correto, comparando as características da sua tentativa (por exemplo: Gênero, Posições, Espécie, Região, etc.) com as do Campeão alvo.
-            
-            // Indicadores de Dica:
-            
-            // Verde: A característica está correta.
-            
-            // Amarelo: A característica está parcialmente correta (ex: uma das posições está correta, mas não a principal, ou é uma das posições possíveis).
-            
-            // Vermelho: A característica está incorreta.
-            
-            // Setas: Indicam se o número da Característica correta (ex: ano de lançamento, distância do ataque básico) é maior (↑) ou menor (↓) do que o seu palpite.
-                DrawText("Adivinhe o jogo!", 100, 100, 20, WHITE);
-                DrawText("Você começa digitando o nome de qualquer jogo.", 100, 130, 20, WHITE);
-                DrawText("Após cada palpite, o jogo fornece dicas sobre o jogo correto, ", 100, 160, 20, WHITE);
-                DrawText("comparando as características da sua tentativa com as do jogo certo.", 100, 190, 20, WHITE);
-                DrawText("Indicadores de Dica:", 100, 240, 20, WHITE);
-                DrawText("  A característica está correta.", 100, 270, 20, GREEN);
-                DrawText("  A característica está parcialmente correta.", 100, 300, 20, YELLOW);
-                DrawText("  A característica está incorreta.", 100, 330, 20, RED);
-                DrawText("  Setas: Indicam se o número da Característica correta é maior ou menor do que o seu palpite.", 100, 360, 20, GRAY);
+                DrawText("Adivinhe o jogo!", 100 + mouse_x, 100 + mouse_y, 20, WHITE);
+                DrawText("Você começa digitando o nome de qualquer jogo.", 100 + mouse_x, 130 + mouse_y, 20, WHITE);
+                DrawText("Após cada palpite, o jogo fornece dicas sobre o jogo correto, ", 100 + mouse_x, 160 + mouse_y, 20, WHITE);
+                DrawText("comparando as características da sua tentativa com as do jogo certo.", 100 + mouse_x, 190 + mouse_y, 20, WHITE);
+                DrawText("Indicadores de Dica:", 100 + mouse_x, 240 + mouse_y, 20, WHITE);
+                DrawText("  A característica está correta.", 100 + mouse_x, 270 + mouse_y, 20, GREEN);
+                DrawText("  A característica está parcialmente correta.", 100 + mouse_x, 300 + mouse_y, 20, YELLOW);
+                DrawText("  A característica está incorreta.", 100 + mouse_x, 330 + mouse_y, 20, RED);
+                DrawText("  Setas: Indicam se o número da Característica correta é maior ou menor do que o seu palpite.", 100 + mouse_x, 360 + mouse_y, 20, GRAY);
             EndMode2D();
         } break;
 
         case SCREEN_GAMEPLAY: {
-            // Desenho do Gameplay é dividido em duas partes (Mundo e UI)
-            
-            // 1. DESENHA O MUNDO (com câmera do jogo + câmera de transição)
+            // 1. Mundo do Jogo (Soma a câmera do gameplay com a transição)
             Camera2D world_cam = get_gameplay_camera();
             world_cam.offset = Vector2Add(world_cam.offset, transition_cam.offset); 
             
@@ -348,13 +381,12 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
                 draw_gameplay_world();
             EndMode2D();
             
-            // 2. DESENHA A UI (apenas com câmera de transição)
+            // 2. UI do Jogo (Apenas transição)
             BeginMode2D(transition_cam);
                 draw_gameplay_ui();
             EndMode2D();
         } break;
         
-        // Desenho da tela de vitória
         case SCREEN_VICTORY: {
             BeginMode2D(transition_cam);
                 const char* msgVitoria = "VOCE VENCEU!";
@@ -389,93 +421,126 @@ void draw_screen(GameScreen screen, Camera2D transition_cam) {
     }
 }
 
+// --- MAIN ---
 
 int main()
 {
     initialize_list();
     update_list();
     
-    // srand(time(NULL)) precisa estar aqui
     srand(time(NULL));
 
-    // Inicializa a janela com o tamanho vindo do gameplay.h
     InitWindow(screen_width, screen_height, "Guess The Game");
-    InitAudioDevice();
+    InitAudioDevice(); 
 
-    // Desativa a tecla ESC para fechar o jogo
+    // --- CARREGAMENTO DAS MÚSICAS ---
+    music_main = LoadMusicStream("musicas/main_theme_2.ogg");
+    music_win  = LoadMusicStream("musicas/win_theme.ogg");
+    music_lose = LoadMusicStream("musicas/lose_theme.ogg");
+
+    current_volume = 0.0f;
+    master_volume = 0.5f; 
+
+    PlayMusicStream(music_main);
+    current_music = &music_main;
+    music_state = MUSIC_FADING_IN; 
+
     SetExitKey(0); 
-
-    // Carrega a lista de jogos UMA VEZ
     load_list();
-
     SetTargetFPS(60);
-
     initialize_buttons();
 
     if (tex_game_logo.id == 0) {
         tex_game_logo = LoadTexture("sources/logojogo.png");
     }
 
+    load_background_texture();
     
-
-    // Loop principal (O Maestro)
+    // Loop principal
     while (!WindowShouldClose()) {
-        
-
-        
-        // 1. ATUALIZAR
         update_game_logic();
 
-        // 2. DESENHAR
         BeginDrawing();
-        ClearBackground((Color){30,30,30,255}); // Cor de fundo do jogo
+        ClearBackground((Color){30,30,30,255}); 
         
-        // Câmeras base para a transição
+        // --- LÓGICA DE TRANSIÇÃO (SLIDE + FADE) ---
         Camera2D transition_cam_prev = { 0 };
         transition_cam_prev.zoom = 1.0f;
         
         Camera2D transition_cam_curr = { 0 };
         transition_cam_curr.zoom = 1.0f;
-
         
         if (current_screen != previous_screen)
         {
-            // --- 1. ATUALIZA A TRANSIÇÃO (Lerp Puro) ---
-            transition_offset = Lerp(transition_offset, (float)screen_width, 0.1f);
+            // 1. Move a câmera (SLIDE)
+            transition_offset = Lerp(transition_offset, (float)screen_width, 0.05f); // 0.05f é a velocidade do slide
             
-            // Se a transição terminou (ou está muito perto),
-            // reseta o offset e trava a tela em 'previous_screen = current_screen'
-            // Isso permite que o 'update_game_logic' volte a rodar
-            if (fabs((float)screen_width - transition_offset) < 0.1f) // Mais preciso que 1.0f
+            // 2. Calcula o Alpha do Fade baseado na posição do Slide (0 -> 1 -> 0)
+            float slide_progress = transition_offset / (float)screen_width;
+            // Usa seno para criar arco: inicia 0, meio 1, fim 0
+            fade_overlay_alpha = sinf(slide_progress * PI); 
+
+            // 3. CARREGAMENTO DE ASSETS (O Pulo do Gato)
+            // Se estamos perto do meio da transição (tela quase preta) e precisamos carregar o jogo
+            if (needs_to_load_gameplay && slide_progress > 0.4f) {
+                
+                // Força desenhar um frame totalmente preto antes de travar para carregar
+                DrawRectangle(0, 0, screen_width, screen_height, BLACK);
+                EndDrawing(); // Força update da tela
+                
+                // --- AREA DE CARREGAMENTO PESADO ---
+                unload_gameplay_round(); 
+                load_games(); 
+                load_texture();
+                init_gameplay();
+                // -----------------------------------
+                
+                needs_to_load_gameplay = 0; // Já carregou
+                
+                BeginDrawing(); // Retoma o drawing normal
+            }
+
+            // Se terminou o slide
+            if (fabs((float)screen_width - transition_offset) < 1.0f) 
             {
-                transition_offset = 0.0f; // Reseta para a próxima transição
-                previous_screen = current_screen; // Trava na nova tela
+                transition_offset = 0.0f; 
+                previous_screen = current_screen; 
+                fade_overlay_alpha = 0.0f; // Garante que o fade some
             }
             
-            // Define os offsets de transição
+            // Define offsets das câmeras
             transition_cam_prev.offset = (Vector2){ -transition_offset, 0 };
             transition_cam_curr.offset = (Vector2){ screen_width - transition_offset, 0 };
         }
-        // Se não estiver em transição, os offsets permanecem (0, 0)
-        // o que faz 'transition_cam_curr' ser a câmera padrão.
 
-        // --- 2. DESENHA A TELA ANTERIOR (se estiver em transição) ---
-        if (previous_screen != current_screen) 
-        {
+        // Desenha a tela anterior (saindo)
+        if (previous_screen != current_screen) {
             draw_screen(previous_screen, transition_cam_prev);
         }
 
-        // --- 3. DESENHA A TELA ATUAL ---
+        // Desenha a tela atual (entrando)
         draw_screen(current_screen, transition_cam_curr);
+        
+        // DESENHA O RETÂNGULO DE FADE (TELA PRETA)
+        if (fade_overlay_alpha > 0.01f) {
+            // Usa Clamp para garantir que alpha fique entre 0 e 1
+            float safe_alpha = Clamp(fade_overlay_alpha, 0.0f, 1.0f);
+            DrawRectangle(0, 0, screen_width, screen_height, Fade(BLACK, safe_alpha));
+        }
 
         EndDrawing();
     }
 
-    // --- LIMPEZA FINAL ---
+    // --- LIMPEZA ---
     UnloadTexture(tex_button_atlas);
-    unload_gameplay_round(); // Limpa a última rodada
-    unload_global_assets(); // Limpa as texturas da lista de jogos
-    UnloadMusicStream(music);
+    unload_gameplay_round(); 
+    unload_global_assets(); 
+    unload_background_texture();
+
+    UnloadMusicStream(music_main);
+    UnloadMusicStream(music_win);
+    UnloadMusicStream(music_lose);
+
     CloseAudioDevice();
     CloseWindow();        
     return 0;
