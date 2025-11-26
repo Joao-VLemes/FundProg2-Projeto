@@ -861,6 +861,8 @@ void draw_gameplay_world(void) {
         }
     }
 
+    DrawRectangle(screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, BLACK);
+
     // Renderiza as dicas (frase, imagem borrada, imagem nítida)
     if (hint_1) {
         DrawText(correct_game.phrase, screen_width / 2 - MeasureText(correct_game.phrase, 20) / 2, 500, 20, YELLOW);
@@ -873,8 +875,6 @@ void draw_gameplay_world(void) {
     if (hint_3) {
         DrawTexture(cover_texture, screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, WHITE);
     }
-
-    DrawRectangle(screen_width - cover_texture.width - 20, screen_height - cover_texture.height - 20, blurred_object_rt.texture.width, blurred_object_rt.texture.height, Fade(BLACK, 0.5f));
 }
 
 /**
